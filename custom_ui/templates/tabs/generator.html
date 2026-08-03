@@ -1,35 +1,43 @@
 <!-- Generator Tab Content -->
-<div class="method-description">
-    <h3>⚡ Test Code Generator</h3>
-    <p>Generate pytest test files automatically from natural language queries</p>
-    <ul>
-        <li>✅ Natural language to test code conversion</li>
-        <li>✅ Automatic pytest code generation</li>
-        <li>✅ Allure reporting integration</li>
-        <li>✅ Creates organized test folders</li>
-    </ul>
+<div class="generator-header-row">
+    <div class="method-description generator-description">
+        <h3>⚡ Test Code Generator</h3>
+        <p>Generate pytest test files automatically from natural language queries</p>
+        <ul>
+            <li>✅ Natural language to test code conversion</li>
+            <li>✅ Automatic pytest code generation</li>
+            <li>✅ Allure reporting integration</li>
+            <li>✅ Creates organized test folders</li>
+        </ul>
+    </div>
+
+    <div class="generator-header-selectors">
+        <div class="input-section">
+            <label for="generatorExcelFileSelect">📁 Select Excel File:</label>
+            <select id="generatorExcelFileSelect" class="select-input">
+                <option value="">Loading files...</option>
+            </select>
+        </div>
+
+        <div class="input-section">
+            <label for="generatorBaseUrlSelect">🌐 Select Base URL:</label>
+            <select id="generatorBaseUrlSelect" class="select-input">
+                <option value="https://petstore.swagger.io/v2">PETSTORE - https://petstore.swagger.io/v2</option>
+                <option value="https://jsonplaceholder.typicode.com">JSONPLACEHOLDER - https://jsonplaceholder.typicode.com</option>
+                <option value="custom">Custom URL...</option>
+            </select>
+
+            <input
+                type="url"
+                id="generatorCustomBaseUrl"
+                placeholder="Enter custom base URL"
+                style="display: none;"
+            >
+        </div>
+    </div>
 </div>
 
 <div class="input-section">
-    <label for="generatorExcelFileSelect">📁 Select Excel File:</label>
-    <select id="generatorExcelFileSelect" class="select-input">
-        <option value="">Loading files...</option>
-    </select>
-
-    <label for="generatorBaseUrlSelect">🌐 Select Base URL:</label>
-    <select id="generatorBaseUrlSelect" class="select-input">
-        <option value="https://petstore.swagger.io/v2">PETSTORE - https://petstore.swagger.io/v2</option>
-        <option value="https://jsonplaceholder.typicode.com">JSONPLACEHOLDER - https://jsonplaceholder.typicode.com</option>
-        <option value="custom">Custom URL...</option>
-    </select>
-
-    <input
-        type="url"
-        id="generatorCustomBaseUrl"
-        placeholder="Enter custom base URL"
-        style="display: none;"
-    >
-
     <label for="generatorFolderName">📁 Folder Name (inside rest_test/):</label>
     <input
         type="text"
