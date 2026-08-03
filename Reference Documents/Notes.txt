@@ -1,0 +1,67 @@
+pytest tests/test_group_api.py::TestGroupAPIFlow::test_complete_group_crud_flow
+
+
+# To run tests with logs, always use the -s flag
+pytest tests/test_group_api.py -v -s
+
+
+# To run python file
+python ext_util/test_xl_util.py
+
+
+# To run custom UI
+python custom_ui/app.py
+http://localhost:5000/
+
+
+https://petstore.swagger.io/
+
+
+# Run all tests
+pytest rest_test/ -v -s
+
+# Run specific test
+pytest rest_test/test_petstore_api.py::TestPetStoreAPI::test_01_create_get_delete_pet_tommy -v -s
+
+# Run Test 2
+pytest rest_test/test_petstore_api.py::TestPetStoreAPI::test_02_update_pet_status_and_validate -v -s
+
+# Run Test 3
+pytest rest_test/test_petstore_api.py::TestPetStoreAPI::test_03_create_and_validate_10_pets -v -s
+
+pytest .\rest_test\test8\test8.py::TestGeneratedAPIs::test_01_create_a_new_pet_ai -v -s --alluredir=allure-results
+
+
+# Run all Store API tests
+pytest rest_test/test_petstore_store_api.py -v -s
+
+# Run Test 1 only
+pytest rest_test/test_petstore_store_api.py::TestPetStoreStoreAPI::test_01_create_validate_delete_order -v -s
+
+# Run Test 2 only
+pytest rest_test/test_petstore_store_api.py::TestPetStoreStoreAPI::test_02_get_inventory_and_validate -v -s
+
+
+# Run User API test
+pytest rest_test/test_petstore_user_api.py -v -s
+
+# Run specific test
+pytest rest_test/test_petstore_user_api.py::TestPetStoreUserAPI::test_01_create_login_delete_user -v -s
+
+# Run all tests including User API
+pytest rest_test/ -v -s
+
+
+Create a new pet -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response
+pytest rest_test/eighteenth/eighteenth.py rest_test/nineteenth/nineteenth.py -v -s --alluredir=allure-results
+
+
+allure serve allure-results
+
+# Generate report to allure-report folder
+allure generate allure-results -o allure-report --clean
+
+# Open the report
+allure open allure-report
+
+

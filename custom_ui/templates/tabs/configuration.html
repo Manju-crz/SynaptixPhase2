@@ -1,0 +1,63 @@
+<!-- Configuration Tab Content -->
+<div class="method-description">
+    <h3>⚙️ Configuration</h3>
+    <p>Configure AI models and system settings for Synaptix framework</p>
+</div>
+
+<div class="config-section">
+    <h4>🤖 AI Model Configuration</h4>
+    <p style="margin-bottom: 15px; color: #a0a0a0;">Select the AI model to use for code generation and enhancement. The selected model will be used across all code generation features.</p>
+
+    <div class="input-section">
+        <label for="globalAiModelSelect">🎯 Select AI Model:</label>
+        <select id="globalAiModelSelect" class="select-input" onchange="saveAiModelConfig()">
+            <option value="openai" selected>OpenAI - GPT-4o-mini</option>
+            <option value="deepseek">DeepSeek - v4-coder</option>
+            <option value="groq">Groq - Llama-3.3-70b-versatile</option>
+        </select>
+
+        <div id="modelConfigStatus" style="margin-top: 10px; padding: 10px; background: rgba(0, 255, 0, 0.1); border-radius: 5px; display: none;">
+            <span style="color: #00ff00;">✅ Configuration saved successfully!</span>
+        </div>
+
+        <div style="margin-top: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; border-left: 4px solid #4a9eff;">
+            <h5 style="margin: 0 0 10px 0; color: #4a9eff;">ℹ️ Model Information</h5>
+            <div id="modelInfo" style="color: #c0c0c0; font-size: 0.9em; line-height: 1.6;">
+                <strong>OpenAI GPT-4o-mini:</strong> Balanced performance and cost. Good for general code generation tasks. Recommended for most use cases.<br><br>
+                <strong>DeepSeek v4-coder:</strong> Specialized for coding tasks. Optimized for code generation and modification. Cost-effective alternative.<br><br>
+                <strong>Groq Llama-3.3-70b:</strong> Fast inference with large context window. Good for complex code modifications with quick response times.
+            </div>
+        </div>
+
+        <div style="margin-top: 15px; padding: 15px; background: rgba(255, 165, 0, 0.1); border-radius: 8px; border-left: 4px solid #ffa500;">
+            <h5 style="color: #ffa500;">⚠️ API Keys Required</h5>
+            <p style="color: #c0c0c0; font-size: 0.9em; margin: 0; line-height: 1.6;">
+                To use AI models, ensure the corresponding API keys are configured in your <code>.env</code> file:<br>
+                <li><code>OPENAI_API_KEY</code> for OpenAI<br>
+                <li><code>DEEPSEEK_API_KEY</code> for DeepSeek<br>
+                <li><code>GROQ_API_KEY</code> for Groq
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="config-section">
+    <h4>🔧 System Information</h4>
+    <div class="info-grid">
+        <div class="info-item">
+            <strong>Framework:</strong> Synaptix AI-Based REST API Test Automation
+        </div>
+        <div class="info-item">
+            <strong>Base URLs:</strong> PETSTORE, JSONPLACEHOLDER
+        </div>
+        <div class="info-item">
+            <strong>Data Storage:</strong> Rest_API_Data folder
+        </div>
+        <div class="info-item">
+            <strong>Test Suite:</strong> rest_test/ (Pet, Store, User APIs)
+        </div>
+        <div class="info-item">
+            <strong>Current AI Model:</strong> <span id="currentAiModel" style="color: #4a9eff;"></span>
+        </div>
+    </div>
+</div>

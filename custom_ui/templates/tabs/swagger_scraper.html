@@ -1,0 +1,22 @@
+<!-- Swagger UI Scraper Tab Content -->
+<div class="method-description">
+    <h3>Swagger UI Scraper</h3>
+    <p>Extracts data by scraping the Swagger UI interface using browser automation.</p>
+    <ul>
+        <li>✅ Works when only UI is accessible</li>
+        <li>⚠️ Slower (1-5 minutes)</li>
+        <li>⚠️ Requires browser automation</li>
+    </ul>
+</div>
+<div class="input-section">
+    <label for="uiUrlInput">Swagger UI URL:</label>
+    <input
+        type="url"
+        id="uiUrlInput"
+        placeholder="https://petstore.swagger.io/"
+        value="https://petstore.swagger.io/"
+    >
+    <button id="runUiScraperBtn" onclick="runUiScraper()">
+        ▶️ Run UI Scraper
+    </button>
+</div>

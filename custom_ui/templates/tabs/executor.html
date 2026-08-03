@@ -1,0 +1,44 @@
+<!-- Executor Tab Content -->
+<div class="method-description">
+    <h3>🚀 API Executor</h3>
+    <p>Execute API calls using natural language queries powered by semantic search</p>
+    <ul>
+        <li>✅ Natural language to API mapping</li>
+        <li>✅ Automatic endpoint discovery</li>
+        <li>✅ Real-time API execution</li>
+        <li>✅ Detailed response inspection</li>
+    </ul>
+</div>
+
+<div class="input-section">
+    <label for="excelFileSelect">📁 Select Excel File:</label>
+    <select id="excelFileSelect" class="select-input">
+        <option value="">Loading files...</option>
+    </select>
+
+    <label for="baseUrlSelect">🌐 Select Base URL:</label>
+    <select id="baseUrlSelect" class="select-input">
+        <option value="https://petstore.swagger.io/v2">PETSTORE - https://petstore.swagger.io/v2</option>
+        <option value="https://jsonplaceholder.typicode.com">JSONPLACEHOLDER - https://jsonplaceholder.typicode.com</option>
+        <option value="custom">Custom URL...</option>
+    </select>
+
+    <input
+        type="url"
+        id="customBaseUrl"
+        placeholder="Enter custom base URL"
+        style="display: none;"
+    >
+
+    <label for="queryInput">💬 Natural Language Query:</label>
+    <textarea
+        id="queryInput"
+        placeholder="Example: Create a new pet in the pet store&#10;Multiple queries: Create a new pet; Update pet information; Delete a pet"
+        rows="4"
+        class="textarea-input"
+    ></textarea>
+
+    <button id="runExecutorBtn" onclick="runExecutor()">
+        ▶️ Execute Query
+    </button>
+</div>

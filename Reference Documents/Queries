@@ -1,0 +1,116 @@
+Supported Query Patterns for Dependencies:
+
+==========================================
+1. ARROW SYNTAX (EXPLICIT INSTRUCTIONS) - NEW!
+==========================================
+
+Format: Action -> Instruction1 -> Instruction2
+
+Example 1: Extract and Use
+Create a new pet -> Retrieve the pet_id from the response
+Update pet information -> Use the pet_id from previous response
+Delete a pet -> Use the pet_id from previous response
+
+Example 2: Multiple Fields
+Create a user -> Extract the user_id and email from response
+Create order -> Use the user_id from previous response
+Update order -> Use the same user_id
+
+Example 3: Specific Field Names
+Create a new pet -> Save the id from response
+Update pet -> Pass the id from previous response to this request
+Delete pet -> Send the id from previous response
+
+Supported Keywords:
+- Extract: retrieve, extract, save, get
+- Use: use, pass, send, with
+
+
+==========================================
+2. EXPLICIT STEP REFERENCE
+==========================================
+
+Create a new pet in the pet store
+Update pet from step 1
+Delete pet from step 1
+
+
+==========================================
+3. "PREVIOUS" KEYWORD
+==========================================
+
+Create a new pet in the pet store
+Update the previous pet
+Delete the previous pet
+
+
+==========================================
+4. "CREATED/UPDATED/SAME" KEYWORDS
+==========================================
+
+Create a new pet in the pet store
+Update the created pet
+Delete the same pet
+
+
+==========================================
+5. IMPLICIT (AUTOMATIC)
+==========================================
+
+Create a new pet in the pet store
+Update the pet information
+Delete a pet
+
+(Automatically detects {petId} path parameter and uses extracted ID)
+
+
+==========================================
+EXAMPLES BY USE CASE
+==========================================
+
+Use Case 1: Simple CRUD with Arrow Syntax
+-----------------------------------------
+
+Create a new pet -> Retrieve the pet_id from the response
+Update the pet -> Use the pet_id from previous response
+Delete the pet -> Use the pet_id from previous response
+
+
+Use Case 2: User and Order Workflow
+-----------------------------------
+
+Create a new user -> Extract the user_id from response
+Create an order -> Use the user_id from previous response
+Get order details -> Use the order_id from step 2
+Cancel the order -> Use the order_id from previous response
+
+
+Use Case 3: Implicit Dependencies
+---------------------------------
+
+Create a new pet
+Update the pet information
+Delete a pet
+
+(Works automatically without explicit instructions)
+
+
+==========================================
+TIPS
+==========================================
+
+1. Use arrow syntax (->) for explicit control over field extraction
+2. Field names are case-insensitive and underscore-flexible (pet_id = petId)
+3. Multiple queries separated by semicolon (;)
+4. Extraction happens automatically for POST/PUT if subsequent steps need IDs
+5. You can mix patterns (some with arrows, some without)
+
+
+Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response
+test25
+
+
+Create a new pet in pest store -> Use a unique pet name by generating a random string while creating new pet -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response while updating, and also use another unique random pet name generated while updating the pet name; Delete a pet -> Use the pet_id from previous response
+test26
+
+

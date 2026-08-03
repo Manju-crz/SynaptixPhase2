@@ -1,0 +1,102 @@
+<!-- Generator Tab Content -->
+<div class="method-description">
+    <h3>⚡ Test Code Generator</h3>
+    <p>Generate pytest test files automatically from natural language queries</p>
+    <ul>
+        <li>✅ Natural language to test code conversion</li>
+        <li>✅ Automatic pytest code generation</li>
+        <li>✅ Allure reporting integration</li>
+        <li>✅ Creates organized test folders</li>
+    </ul>
+</div>
+
+<div class="input-section">
+    <label for="generatorExcelFileSelect">📁 Select Excel File:</label>
+    <select id="generatorExcelFileSelect" class="select-input">
+        <option value="">Loading files...</option>
+    </select>
+
+    <label for="generatorBaseUrlSelect">🌐 Select Base URL:</label>
+    <select id="generatorBaseUrlSelect" class="select-input">
+        <option value="https://petstore.swagger.io/v2">PETSTORE - https://petstore.swagger.io/v2</option>
+        <option value="https://jsonplaceholder.typicode.com">JSONPLACEHOLDER - https://jsonplaceholder.typicode.com</option>
+        <option value="custom">Custom URL...</option>
+    </select>
+
+    <input
+        type="url"
+        id="generatorCustomBaseUrl"
+        placeholder="Enter custom base URL"
+        style="display: none;"
+    >
+
+    <label for="generatorFolderName">📁 Folder Name (inside rest_test/):</label>
+    <input
+        type="text"
+        id="generatorFolderName"
+        placeholder="e.g., generated_tests, pet_tests, user_api_tests"
+        class="select-input"
+    >
+
+    <label for="generatorFileName">📄 Test File Name (without .py):</label>
+    <input
+        type="text"
+        id="generatorFileName"
+        placeholder="e.g., test_pet_operations, test_user_workflow"
+        class="select-input"
+    >
+
+    <label for="generatorQueryInput">💬 Natural Language Test case Prompt:</label>
+    <textarea
+        id="generatorQueryInput"
+        placeholder="Example: Create a new pet in the pet store&#10;Multiple queries: Create a new pet; Update pet information; Delete a pet&#10;&#10;Note: Each query will generate a separate test method"
+        rows="4"
+        class="textarea-input"
+    ></textarea>
+
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+        <button id="runGeneratorBtn" onclick="runGenerator()" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
+            ⚡ Generate Test Code
+        </button>
+
+        <button id="executeTestBtn" onclick="executeGeneratedTest()" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
+            ▶️ Execute Test
+        </button>
+
+        <button id="showReportBtn" onclick="showAllureReport()" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
+            📊 Generate Report
+        </button>
+    </div>
+
+    <div id="generatorStatus" class="status-section" style="display: none; margin-top: 15px;">
+        <span id="generatorStatusIcon">⏳</span>
+        <span id="generatorStatusText">Processing...</span>
+    </div>
+
+    <!-- Output Tabs -->
+    <div id="outputTabsContainer" style="display: none; margin-top: 20px;">
+        <div style="display: flex; gap: 10px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); margin-bottom: 15px;">
+            <button class="output-tab-button active" onclick="switchOutputTab('generation-results')" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                📄 Generation Results
+            </button>
+            <button class="output-tab-button" onclick="switchOutputTab('execution-logs')" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                🔍 Execution Logs
+            </button>
+            <button class="output-tab-button" onclick="switchOutputTab('report-status')" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                📊 Report Status
+            </button>
+        </div>
+
+        <div id="generation-results" class="output-tab-content active" style="display: block;">
+            <div id="generationResultsContent"></div>
+        </div>
+
+        <div id="execution-logs" class="output-tab-content" style="display: none;">
+            <div id="executionLogsContent"></div>
+        </div>
+
+        <div id="report-status" class="output-tab-content" style="display: none;">
+            <div id="reportStatusContent"></div>
+        </div>
+    </div>
+</div>

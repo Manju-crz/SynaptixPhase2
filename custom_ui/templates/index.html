@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synaptix AI-Based API Test Automation Code Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- New Component Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/notification.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Synaptix AI-Based API Test Automation Code Generator</h1>
+            <p>Extracts API documentation from Swagger UI or OpenAPI JSON and Generates Test script code using natural language test case prompts</p>
+        </header>
+
+        <main>
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('configuration')">
+                    ⚙️ Configuration
+                </button>
+                <button class="tab-button" onclick="switchTab('features')">
+                    ✨ Features
+                </button>
+                <button class="tab-button" onclick="switchTab('executor')">
+                    🚀 Executor
+                </button>
+                <button class="tab-button" onclick="switchTab('generator')">
+                    ⚡ CodeGenerator
+                </button>
+                <button class="tab-button" onclick="switchTab('ui-scraper')">
+                    🌐 Swagger UI Scraper
+                </button>
+                <button class="tab-button" onclick="switchTab('json-parser')">
+                    📄 OpenAPI JSON Parser
+                </button>
+            </div>
+
+            <div id="configuration" class="tab-content active">
+                {% include 'tabs/configuration.html' %}
+            </div>
+
+            <div id="features" class="tab-content">
+                {% include 'tabs/features.html' %}
+            </div>
+
+            <div id="executor" class="tab-content">
+                {% include 'tabs/executor.html' %}
+            </div>
+
+            <div id="generator" class="tab-content">
+                {% include 'tabs/generator.html' %}
+            </div>
+
+            <div id="ui-scraper" class="tab-content">
+                {% include 'tabs/swagger_scraper.html' %}
+            </div>
+
+            <div id="json-parser" class="tab-content">
+                {% include 'tabs/openapi_parser.html' %}
+            </div>
+
+            <div class="status-section" id="statusSection" style="display: none;">
+                <div class="status-header">
+                    <span id="statusIcon">⏳</span>
+                    <span id="statusText">Running...</span>
+                </div>
+            </div>
+
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <h3>📋 Results</h3>
+                <div id="resultsContent"></div>
+                <div class="logs-container">
+                    <h4>Logs:</h4>
+                    <pre id="logsOutput"></pre>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Synaptix AI Based Rest API Test Automation Framework</p>
+        </footer>
+    </div>
+
+    <!-- Core utilities (load first) -->
+    <script src="{{ url_for('static', filename='js/utils/storage.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/utils/validators.js') }}"></script>
+    
+    <!-- Components (load second) -->
+    <script src="{{ url_for('static', filename='js/components/notification.js') }}"></script>
+    
+    <!-- Page controllers (load third) -->
+    <script src="{{ url_for('static', filename='js/pages/configurationPage.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pages/executorPage.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pages/generatorPage.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pages/swaggerScraperPage.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pages/openapiParserPage.js') }}"></script>
+    
+    <!-- Main script (load last for backward compatibility) -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
