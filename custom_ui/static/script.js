@@ -46,18 +46,30 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAiModelConfig();
 });
 
-function switchOutputTab(tabName) {
-    // Hide all output tab contents
-    const outputContents = document.querySelectorAll('.output-tab-content');
+function switchOutputTab(tabName, compNum, classNum) {
+    // Scope to the specific test class section if both compNum and classNum are provided
+    let scope = document;
+    if (compNum && classNum) {
+        const section = document.getElementById(`testClass_${compNum}_${classNum}`);
+        if (section) scope = section;
+    } else if (compNum) {
+        const panel = document.getElementById(`tcPanel_${compNum}`);
+        if (panel) scope = panel;
+    }
+
+    // Hide all output tab contents within scope
+    const outputContents = scope.querySelectorAll('.output-tab-content');
     outputContents.forEach(content => {
         content.style.display = 'none';
         content.classList.remove('active');
     });
 
-    // Remove active class from all output tab buttons
-    const outputButtons = document.querySelectorAll('.output-tab-button');
+    // Remove active class from all output tab buttons within scope
+    const outputButtons = scope.querySelectorAll('.output-tab-button');
     outputButtons.forEach(button => {
         button.classList.remove('active');
+        button.style.borderBottomColor = 'transparent';
+        button.style.color = '#a0a0a0';
     });
 
     // Show selected output tab content
@@ -67,16 +79,12 @@ function switchOutputTab(tabName) {
         selectedContent.classList.add('active');
     }
 
-    // Add active class to corresponding button
-    if (tabName === 'generation-results') {
-        const genButton = document.querySelector('.output-tab-button:nth-child(1)');
-        if (genButton) genButton.classList.add('active');
-    } else if (tabName === 'execution-logs') {
-        const execButton = document.querySelector('.output-tab-button:nth-child(2)');
-        if (execButton) execButton.classList.add('active');
-    } else if (tabName === 'report-status') {
-        const reportButton = document.querySelector('.output-tab-button:nth-child(3)');
-        if (reportButton) reportButton.classList.add('active');
+    // Add active class to the clicked button (find by data-output attribute)
+    const activeBtn = scope.querySelector(`.output-tab-button[data-output="${tabName}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.borderBottomColor = '#00d4ff';
+        activeBtn.style.color = '#00d4ff';
     }
 }
 
@@ -98,6 +106,400 @@ function switchTab(tabName) {
     // Hide results when switching tabs
     document.getElementById('statusSection').style.display = 'none';
     document.getElementById('resultsSection').style.display = 'none';
+}
+
+function toggleCollapsibleSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    section.classList.toggle('collapsed');
+}
+
+// ===== TestComponent sub-tab management =====
+let testComponentCounter = 0;
+let activeTestComponent = 1;
+
+// Per-component test class counters
+let testClassCounters = {};
+
+function createTestClassHTML(compNum, classNum) {
+    const id = `${compNum}_${classNum}`;
+    const closeBtn = `<button class="tc-class-close" onclick="removeTestClass(${compNum}, ${classNum}, event)" title="Remove Test Class">&times;</button>`;
+    return `
+        <div class="test-class-section" id="testClass_${id}">
+            <div class="test-class-header" onclick="toggleTestClassBody('${id}')">
+                <span class="test-class-toggle">▼</span>
+                <span class="test-class-title" id="testClassTitle_${id}">📘 TestClass_${String(classNum).padStart(2, '0')}</span>
+                <a href="javascript:void(0)" class="tc-class-rename-link" onclick="showRenameTestClassInput('${id}', event)" title="Rename Test Class">Rename Test Class</a>
+                <div class="tc-class-rename-editor" id="testClassRenameEditor_${id}" style="display: none;">
+                    <input type="text" id="testClassRenameInput_${id}" placeholder="Enter new name" class="tc-class-rename-input">
+                    <button class="tc-class-rename-save" onclick="saveTestClassName('${id}', event)" title="Save">✓</button>
+                    <button class="tc-class-rename-cancel" onclick="cancelRenameTestClass('${id}', event)" title="Cancel">✕</button>
+                </div>
+                ${closeBtn}
+            </div>
+            <div class="test-class-body" id="testClassBody_${id}">
+                <label for="generatorQueryInput_${id}">💬 Natural Language Test case Prompt:</label>
+                <textarea
+                    id="generatorQueryInput_${id}"
+                    placeholder="Example: Create a new pet in the pet store&#10;Multiple queries: Create a new pet; Update pet information; Delete a pet&#10;&#10;Note: Each query will generate a separate test method"
+                    rows="4"
+                    class="textarea-input"
+                ></textarea>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                    <button id="runGeneratorBtn_${id}" onclick="runGenerator(${compNum}, ${classNum})" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
+                        ⚡ Generate Test Code
+                    </button>
+
+                    <button id="executeTestBtn_${id}" onclick="executeGeneratedTest(${compNum}, ${classNum})" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
+                        ▶️ Execute Test
+                    </button>
+
+                    <button id="showReportBtn_${id}" onclick="showAllureReport(${compNum}, ${classNum})" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
+                        📊 Generate Report
+                    </button>
+                </div>
+
+                <div id="generatorStatus_${id}" class="status-section" style="display: none; margin-top: 15px;">
+                    <span id="generatorStatusIcon_${id}">⏳</span>
+                    <span id="generatorStatusText_${id}">Processing...</span>
+                </div>
+
+                <!-- Output Tabs -->
+                <div id="outputTabsContainer_${id}" style="display: none; margin-top: 20px;">
+                    <div style="display: flex; gap: 10px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); margin-bottom: 15px;">
+                        <button class="output-tab-button active" data-comp="${compNum}" data-class="${classNum}" data-output="generation-results_${id}" onclick="switchOutputTab('generation-results_${id}', ${compNum}, ${classNum})" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                            📄 Generation Results
+                        </button>
+                        <button class="output-tab-button" data-comp="${compNum}" data-class="${classNum}" data-output="execution-logs_${id}" onclick="switchOutputTab('execution-logs_${id}', ${compNum}, ${classNum})" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                            🔍 Execution Logs
+                        </button>
+                        <button class="output-tab-button" data-comp="${compNum}" data-class="${classNum}" data-output="report-status_${id}" onclick="switchOutputTab('report-status_${id}', ${compNum}, ${classNum})" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                            📊 Report Status
+                        </button>
+                    </div>
+
+                    <div id="generation-results_${id}" class="output-tab-content active" style="display: block;">
+                        <div id="generationResultsContent_${id}"></div>
+                    </div>
+
+                    <div id="execution-logs_${id}" class="output-tab-content" style="display: none;">
+                        <div id="executionLogsContent_${id}"></div>
+                    </div>
+
+                    <div id="report-status_${id}" class="output-tab-content" style="display: none;">
+                        <div id="reportStatusContent_${id}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function addTestClass(compNum) {
+    if (!testClassCounters[compNum]) testClassCounters[compNum] = 0;
+    testClassCounters[compNum]++;
+    const classNum = testClassCounters[compNum];
+
+    const container = document.getElementById(`testClassesContainer_${compNum}`);
+    if (!container) return;
+
+    // Insert new test class before the add button
+    const addBtn = container.querySelector('.tc-class-add-btn');
+    const html = createTestClassHTML(compNum, classNum);
+    addBtn.insertAdjacentHTML('beforebegin', html);
+}
+
+function removeTestClass(compNum, classNum, event) {
+    if (event) event.stopPropagation();
+    // Count remaining test class sections for this component
+    const container = document.getElementById(`testClassesContainer_${compNum}`);
+    if (!container) return;
+    const sections = container.querySelectorAll('.test-class-section');
+    if (sections.length <= 1) return; // Don't remove the last one
+
+    const section = document.getElementById(`testClass_${compNum}_${classNum}`);
+    if (section) section.remove();
+}
+
+function toggleTestClassBody(id) {
+    const body = document.getElementById(`testClassBody_${id}`);
+    const section = document.getElementById(`testClass_${id}`);
+    if (!body || !section) return;
+    section.classList.toggle('collapsed');
+}
+
+function setTestClassBodyDisabled(id, disabled) {
+    const body = document.getElementById(`testClassBody_${id}`);
+    if (!body) return;
+    const prompt = document.getElementById(`generatorQueryInput_${id}`);
+    const runBtn = document.getElementById(`runGeneratorBtn_${id}`);
+    const execBtn = document.getElementById(`executeTestBtn_${id}`);
+    const reportBtn = document.getElementById(`showReportBtn_${id}`);
+
+    if (prompt) {
+        prompt.disabled = disabled;
+        prompt.style.opacity = disabled ? '0.5' : '1';
+        prompt.style.cursor = disabled ? 'not-allowed' : 'text';
+    }
+    [runBtn, execBtn, reportBtn].forEach(btn => {
+        if (btn) {
+            btn.disabled = disabled;
+            btn.style.opacity = disabled ? '0.5' : '1';
+            btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+        }
+    });
+}
+
+function showRenameTestClassInput(id, event) {
+    if (event) event.stopPropagation();
+    const titleSpan = document.getElementById(`testClassTitle_${id}`);
+    const editor = document.getElementById(`testClassRenameEditor_${id}`);
+    const input = document.getElementById(`testClassRenameInput_${id}`);
+    if (!titleSpan || !editor || !input) return;
+
+    // Strip emoji prefix for the default value
+    const currentText = titleSpan.textContent;
+    const currentName = currentText.replace(/^[^\p{L}\p{N}]+\s*/u, '');
+    input.value = currentName;
+
+    titleSpan.style.display = 'none';
+    editor.style.display = 'inline-flex';
+    input.focus();
+    input.select();
+
+    // Disable the body elements during editing
+    setTestClassBodyDisabled(id, true);
+}
+
+function saveTestClassName(id, event) {
+    if (event) event.stopPropagation();
+    const titleSpan = document.getElementById(`testClassTitle_${id}`);
+    const editor = document.getElementById(`testClassRenameEditor_${id}`);
+    const input = document.getElementById(`testClassRenameInput_${id}`);
+    if (!titleSpan || !editor || !input) return;
+
+    const newName = input.value.trim();
+    if (!newName) {
+        alert('Test Class name cannot be empty');
+        return;
+    }
+    titleSpan.textContent = `📘 ${newName}`;
+    titleSpan.style.display = '';
+    editor.style.display = 'none';
+
+    // Re-enable the body elements
+    setTestClassBodyDisabled(id, false);
+}
+
+function cancelRenameTestClass(id, event) {
+    if (event) event.stopPropagation();
+    const titleSpan = document.getElementById(`testClassTitle_${id}`);
+    const editor = document.getElementById(`testClassRenameEditor_${id}`);
+    if (!titleSpan || !editor) return;
+    titleSpan.style.display = '';
+    editor.style.display = 'none';
+
+    // Re-enable the body elements
+    setTestClassBodyDisabled(id, false);
+}
+
+function createTestComponentHTML(num) {
+    return `
+        <div class="input-section">
+            <div class="folder-row">
+                <label class="folder-checkbox-label">
+                    <input type="checkbox" id="useComponentAsFolder_${num}" checked onchange="onUseComponentAsFolderChange(${num})">
+                    Use Component as folder
+                </label>
+                <div class="folder-input-wrapper">
+                    <label for="generatorFolderName_${num}">📁 Folder Name (inside rest_test/):</label>
+                    <input
+                        type="text"
+                        id="generatorFolderName_${num}"
+                        placeholder="e.g., generated_tests, pet_tests, user_api_tests"
+                        class="select-input"
+                    >
+                </div>
+            </div>
+
+            <div class="test-classes-container" id="testClassesContainer_${num}">
+                <button class="tc-class-add-btn" onclick="addTestClass(${num})" title="Add new Test Class">+ Add Test Class</button>
+            </div>
+        </div>
+    `;
+}
+
+function createTestComponentTabHTML(num) {
+    const closeBtn = `<button class="tc-tab-close" onclick="removeTestComponent(${num}, event)" title="Remove">&times;</button>`;
+    return `
+        <div class="tc-tab active" id="tcTab_${num}" onclick="switchTestComponent(${num})" ondblclick="renameTestComponent(${num})" title="Double-click to rename">
+            <span id="tcTabLabel_${num}">🛠️ TestComponent_${String(num).padStart(2, '0')}</span>
+            ${closeBtn}
+        </div>
+    `;
+}
+
+function createIconsGroupHTML() {
+    return `
+        <span class="tc-icons-group" onclick="event.stopPropagation()" ondblclick="event.stopPropagation()">
+            <span class="tc-help-icon" title="Double-click a tab to rename it. Click + to add a new TestComponent. Click × to remove a tab.">?</span>
+            <button class="tc-add-btn" onclick="event.stopPropagation(); addTestComponent()" title="Add new TestComponent">+</button>
+        </span>
+    `;
+}
+
+function moveIconsGroupToLastTab() {
+    const iconsGroup = document.querySelector('.tc-icons-group');
+    if (!iconsGroup) return;
+    const allTabs = document.querySelectorAll('.tc-tab');
+    if (allTabs.length === 0) return;
+    const lastTab = allTabs[allTabs.length - 1];
+    lastTab.appendChild(iconsGroup);
+}
+
+function renameTestComponent(num) {
+    const labelSpan = document.getElementById(`tcTabLabel_${num}`);
+    if (!labelSpan) return;
+
+    const currentText = labelSpan.textContent;
+    // Strip leading emoji/icon for the prompt default
+    const currentName = currentText.replace(/^[^\p{L}\p{N}]+\s*/u, '');
+
+    const newName = prompt('Enter new name for this tab:', currentName);
+    if (newName === null) return; // User cancelled
+    const trimmed = newName.trim();
+    if (!trimmed) {
+        alert('Tab name cannot be empty');
+        return;
+    }
+    labelSpan.textContent = `🛠️ ${trimmed}`;
+
+    // If "Use Component as folder" is checked, sync the folder name with the new tab name
+    const checkbox = document.getElementById(`useComponentAsFolder_${num}`);
+    if (checkbox && checkbox.checked) {
+        onUseComponentAsFolderChange(num);
+    }
+}
+
+function onUseComponentAsFolderChange(num) {
+    const checkbox = document.getElementById(`useComponentAsFolder_${num}`);
+    const folderInput = document.getElementById(`generatorFolderName_${num}`);
+    if (!checkbox || !folderInput) return;
+
+    if (checkbox.checked) {
+        // Use the tab name as the folder name
+        const labelSpan = document.getElementById(`tcTabLabel_${num}`);
+        if (labelSpan) {
+            const tabName = labelSpan.textContent.replace(/^[^\p{L}\p{N}]+\s*/u, '');
+            folderInput.value = tabName;
+        }
+        folderInput.readOnly = true;
+        folderInput.style.opacity = '0.6';
+        folderInput.style.cursor = 'not-allowed';
+    } else {
+        // Allow manual entry
+        folderInput.readOnly = false;
+        folderInput.style.opacity = '1';
+        folderInput.style.cursor = 'text';
+    }
+}
+
+function addTestComponent() {
+    testComponentCounter++;
+    const num = testComponentCounter;
+
+    // Deactivate all existing tabs and panels
+    document.querySelectorAll('.tc-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.test-component-panel').forEach(p => p.classList.remove('active'));
+
+    // Add new tab to the container
+    const tabsContainer = document.getElementById('testComponentTabs');
+    const tabHTML = createTestComponentTabHTML(num);
+    tabsContainer.insertAdjacentHTML('beforeend', tabHTML);
+
+    // Create icons group if it doesn't exist yet, then move it into the new last tab
+    if (!document.querySelector('.tc-icons-group')) {
+        tabsContainer.insertAdjacentHTML('beforeend', createIconsGroupHTML());
+    }
+    moveIconsGroupToLastTab();
+
+    // Add new panel
+    const contentArea = document.getElementById('testComponentContentArea');
+    const panel = document.createElement('div');
+    panel.className = 'test-component-panel active';
+    panel.id = `tcPanel_${num}`;
+    panel.innerHTML = createTestComponentHTML(num);
+    contentArea.appendChild(panel);
+
+    // Create the first test class for this component
+    testClassCounters[num] = 0;
+    addTestClass(num);
+
+    // Sync folder name with tab name (checkbox is checked by default)
+    onUseComponentAsFolderChange(num);
+
+    activeTestComponent = num;
+}
+
+function switchTestComponent(num) {
+    // Deactivate all tabs and panels
+    document.querySelectorAll('.tc-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.test-component-panel').forEach(p => p.classList.remove('active'));
+
+    // Activate selected
+    const tab = document.getElementById(`tcTab_${num}`);
+    const panel = document.getElementById(`tcPanel_${num}`);
+    if (tab) tab.classList.add('active');
+    if (panel) panel.classList.add('active');
+
+    activeTestComponent = num;
+}
+
+function removeTestComponent(num, event) {
+    if (event) event.stopPropagation();
+    // Count actual tabs in DOM
+    const allTabs = document.querySelectorAll('.tc-tab');
+    if (allTabs.length <= 1) return; // Don't remove the last one
+
+    // Detach the icons group BEFORE removing the tab (so it doesn't get deleted)
+    const iconsGroup = document.querySelector('.tc-icons-group');
+    if (iconsGroup) {
+        iconsGroup.remove(); // Detach from DOM but keep the element reference
+    }
+
+    // Remove tab and panel
+    const tab = document.getElementById(`tcTab_${num}`);
+    const panel = document.getElementById(`tcPanel_${num}`);
+    if (tab) tab.remove();
+    if (panel) panel.remove();
+
+    // Re-insert the icons group into the tabs container, then move to last tab
+    const tabsContainer = document.getElementById('testComponentTabs');
+    if (iconsGroup && tabsContainer) {
+        tabsContainer.appendChild(iconsGroup);
+    }
+    moveIconsGroupToLastTab();
+
+    // If we removed the active one, switch to the first available
+    if (activeTestComponent === num) {
+        const firstTab = document.querySelector('.tc-tab');
+        if (firstTab) {
+            const firstNum = parseInt(firstTab.id.replace('tcTab_', ''));
+            switchTestComponent(firstNum);
+        }
+    }
+
+    // Clean up test class counter for this component
+    delete testClassCounters[num];
+}
+
+function initTestComponents() {
+    // Clear the tabs container
+    const tabsContainer = document.getElementById('testComponentTabs');
+    tabsContainer.innerHTML = '';
+    // Create the first component (icons group will be moved inside it)
+    addTestComponent();
 }
 
 async function runUiScraper() {
@@ -424,23 +826,27 @@ async function runExecutor() {
     }
 }
 
-async function runGenerator() {
+async function runGenerator(compNum, classNum) {
+    const num = compNum || activeTestComponent || 1;
+    const cls = classNum || (testClassCounters[num] ? testClassCounters[num] : 1);
+    const id = `${num}_${cls}`;
     const excelFileSelect = document.getElementById('generatorExcelFileSelect');
     const baseUrlSelect = document.getElementById('generatorBaseUrlSelect');
     const customBaseUrlInput = document.getElementById('generatorCustomBaseUrl');
-    const folderNameInput = document.getElementById('generatorFolderName');
-    const fileNameInput = document.getElementById('generatorFileName');
-    const queryInput = document.getElementById('generatorQueryInput');
-    const runBtn = document.getElementById('runGeneratorBtn');
-    const statusSection = document.getElementById('statusSection');
-    const resultsSection = document.getElementById('resultsSection');
-    const statusIcon = document.getElementById('statusIcon');
-    const statusText = document.getElementById('statusText');
+    const folderNameInput = document.getElementById(`generatorFolderName_${num}`);
+    const queryInput = document.getElementById(`generatorQueryInput_${id}`);
+    const runBtn = document.getElementById(`runGeneratorBtn_${id}`);
+    const statusSection = document.getElementById(`generatorStatus_${id}`);
+    const statusIcon = document.getElementById(`generatorStatusIcon_${id}`);
+    const statusText = document.getElementById(`generatorStatusText_${id}`);
+
+    // Derive file name from the Test Class title (strip emoji prefix)
+    const titleSpan = document.getElementById(`testClassTitle_${id}`);
+    const fileName = titleSpan ? titleSpan.textContent.replace(/^[^\p{L}\p{N}]+\s*/u, '').trim() : `TestClass_${String(cls).padStart(2, '0')}`;
 
     const excelPath = excelFileSelect.value;
     let baseUrl = baseUrlSelect.value;
     const folderName = folderNameInput.value.trim();
-    const fileName = fileNameInput.value.trim();
     const query = queryInput.value.trim();
     const aiModel = getSelectedAiModel();
 
@@ -463,11 +869,6 @@ async function runGenerator() {
         return;
     }
 
-    if (!fileName) {
-        alert('Please enter a test file name');
-        return;
-    }
-
     if (!query) {
         alert('Please enter natural language queries');
         return;
@@ -481,7 +882,6 @@ async function runGenerator() {
     statusIcon.textContent = '⏳';
     statusIcon.className = 'spinning';
     statusText.textContent = 'Generating test script code from test case prompt...';
-    resultsSection.style.display = 'none';
 
     try {
         const response = await fetch('/run-generator', {
@@ -524,14 +924,14 @@ async function runGenerator() {
         }
 
         // Show output tabs container and switch to Generation Results tab
-        const outputTabsContainer = document.getElementById('outputTabsContainer');
+        const outputTabsContainer = document.getElementById(`outputTabsContainer_${id}`);
         console.log('Output tabs container:', outputTabsContainer);
         outputTabsContainer.style.display = 'block';
 
         // Switch to generation results tab
-        switchOutputTab('generation-results');
+        switchOutputTab(`generation-results_${id}`, num, cls);
 
-        const generationResultsContent = document.getElementById('generationResultsContent');
+        const generationResultsContent = document.getElementById(`generationResultsContent_${id}`);
         console.log('Generation results content element:', generationResultsContent);
 
         let resultsHTML = '';
@@ -605,7 +1005,7 @@ async function runGenerator() {
         console.log('Results HTML set successfully');
 
         // Display logs in Execution Logs tab (including validation logs)
-        const executionLogsContent = document.getElementById('executionLogsContent');
+        const executionLogsContent = document.getElementById(`executionLogsContent_${id}`);
         if (executionLogsContent && result.logs && result.logs.length > 0) {
             let logsHTML = '<div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 8px;">';
             logsHTML += '<h4 style="color: #00d4ff; margin-top: 0;">📋 Generation & Validation Logs</h4>';
@@ -651,6 +1051,9 @@ function escapeHtml(text) {
 document.addEventListener('DOMContentLoaded', function() {
     // Load Excel files when page loads
     loadExcelFiles();
+
+    // Initialize TestComponent sub-tabs
+    initTestComponents();
 
     // Also load files for Generator tab
     setTimeout(() => {
@@ -733,27 +1136,26 @@ async function loadExcelFilesForGenerator() {
     }
 }
 
-async function executeGeneratedTest() {
-    const executeBtn = document.getElementById('executeTestBtn');
-    const statusSection = document.getElementById('generatorStatus');
-    const statusIcon = document.getElementById('generatorStatusIcon');
-    const statusText = document.getElementById('generatorStatusText');
+async function executeGeneratedTest(compNum, classNum) {
+    const num = compNum || activeTestComponent || 1;
+    const cls = classNum || (testClassCounters[num] ? testClassCounters[num] : 1);
+    const id = `${num}_${cls}`;
+    const executeBtn = document.getElementById(`executeTestBtn_${id}`);
+    const statusSection = document.getElementById(`generatorStatus_${id}`);
+    const statusIcon = document.getElementById(`generatorStatusIcon_${id}`);
+    const statusText = document.getElementById(`generatorStatusText_${id}`);
 
-    // Get folder and file names from UI input fields
-    const folderNameInput = document.getElementById('generatorFolderName');
-    const fileNameInput = document.getElementById('generatorFileName');
-
+    // Get folder name from UI; derive file name from Test Class title
+    const folderNameInput = document.getElementById(`generatorFolderName_${num}`);
     const folderName = folderNameInput.value.trim();
-    const fileName = fileNameInput.value.trim();
+
+    // Derive file name from the Test Class title (strip emoji prefix)
+    const titleSpan = document.getElementById(`testClassTitle_${id}`);
+    const fileName = titleSpan ? titleSpan.textContent.replace(/^[^\p{L}\p{N}]+\s*/u, '').trim() : `TestClass_${String(cls).padStart(2, '0')}`;
 
     // Validation
     if (!folderName) {
         alert('Please enter a folder name');
-        return;
-    }
-
-    if (!fileName) {
-        alert('Please enter a test file name');
         return;
     }
 
@@ -837,15 +1239,14 @@ async function executeGeneratedTest() {
             }, 3000);
 
             // Show output tabs container and switch to Execution Logs tab
-            const outputTabsContainer = document.getElementById('outputTabsContainer');
+            const outputTabsContainer = document.getElementById(`outputTabsContainer_${id}`);
             outputTabsContainer.style.display = 'block';
 
             // Switch to execution logs tab
-            const executionTab = document.querySelector('.output-tab-button:nth-child(2)');
-            if (executionTab) executionTab.click();
+            switchOutputTab(`execution-logs_${id}`, num, cls);
 
             // Show test output in execution logs
-            const executionLogsContent = document.getElementById('executionLogsContent');
+            const executionLogsContent = document.getElementById(`executionLogsContent_${id}`);
             let logHTML = '<div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px;">';
             logHTML += '<h4 style="color: #00d4ff; margin-bottom: 15px;">🧪 Test Execution Details</h4>';
             logHTML += '<div class="result-item"><strong>Command:</strong> <code style="color: #00ff88;">' + result.command + '</code></div>';
@@ -875,15 +1276,14 @@ async function executeGeneratedTest() {
             statusText.textContent = 'Test execution failed: ' + result.message;
 
             // Show output tabs container and switch to Execution Logs tab
-            const outputTabsContainer = document.getElementById('outputTabsContainer');
+            const outputTabsContainer = document.getElementById(`outputTabsContainer_${id}`);
             outputTabsContainer.style.display = 'block';
 
             // Switch to execution logs tab
-            const executionTab = document.querySelector('.output-tab-button:nth-child(2)');
-            if (executionTab) executionTab.click();
+            switchOutputTab(`execution-logs_${id}`, num, cls);
 
             // Show error in execution logs
-            const executionLogsContent = document.getElementById('executionLogsContent');
+            const executionLogsContent = document.getElementById(`executionLogsContent_${id}`);
             let errorHTML = '<div style="background: rgba(255,71,87,0.1); padding: 15px; border-radius: 8px;">';
             errorHTML += '<h4 style="color: #ff4757; margin-bottom: 15px;">❌ Test Execution Failed</h4>';
             errorHTML += '<div class="result-item"><strong>Message:</strong> ' + result.message + '</div>';
@@ -917,11 +1317,14 @@ async function executeGeneratedTest() {
     }
 }
 
-async function showAllureReport() {
-    const reportBtn = document.getElementById('showReportBtn');
-    const statusSection = document.getElementById('generatorStatus');
-    const statusIcon = document.getElementById('generatorStatusIcon');
-    const statusText = document.getElementById('generatorStatusText');
+async function showAllureReport(compNum, classNum) {
+    const num = compNum || activeTestComponent || 1;
+    const cls = classNum || (testClassCounters[num] ? testClassCounters[num] : 1);
+    const id = `${num}_${cls}`;
+    const reportBtn = document.getElementById(`showReportBtn_${id}`);
+    const statusSection = document.getElementById(`generatorStatus_${id}`);
+    const statusIcon = document.getElementById(`generatorStatusIcon_${id}`);
+    const statusText = document.getElementById(`generatorStatusText_${id}`);
 
     console.log('Opening Allure report...');
 
@@ -948,11 +1351,11 @@ async function showAllureReport() {
         statusIcon.className = '';
 
         // Show output tabs container and switch to Report Status tab
-        const outputTabsContainer = document.getElementById('outputTabsContainer');
+        const outputTabsContainer = document.getElementById(`outputTabsContainer_${id}`);
         outputTabsContainer.style.display = 'block';
-        switchOutputTab('report-status');
+        switchOutputTab(`report-status_${id}`, num, cls);
 
-        const reportStatusContent = document.getElementById('reportStatusContent');
+        const reportStatusContent = document.getElementById(`reportStatusContent_${id}`);
 
         if (result.success) {
             statusSection.className = 'status-section success';

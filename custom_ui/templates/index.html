@@ -16,69 +16,65 @@
         </header>
 
         <main>
-            <div class="main-layout">
-                <div class="sidebar">
-                    <div class="tabs">
-                        <button class="tab-button active" onclick="switchTab('configuration')">
-                            ⚙️ Configuration
-                        </button>
-                        <button class="tab-button" onclick="switchTab('features')">
-                            ✨ Features
-                        </button>
-                        <button class="tab-button" onclick="switchTab('executor')">
-                            🚀 Executor
-                        </button>
-                        <button class="tab-button" onclick="switchTab('generator')">
-                            ⚡ CodeGenerator
-                        </button>
-                        <button class="tab-button" onclick="switchTab('ui-scraper')">
-                            🌐 Swagger UI Scraper
-                        </button>
-                        <button class="tab-button" onclick="switchTab('json-parser')">
-                            📄 OpenAPI JSON Parser
-                        </button>
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('features')">
+                    ✨ Features
+                </button>
+                <button class="tab-button" onclick="switchTab('executor')">
+                    🚀 Executor
+                </button>
+                <button class="tab-button" onclick="switchTab('generator')">
+                    ⚡ CodeGenerator
+                </button>
+                <button class="tab-button" onclick="switchTab('json-parser')">
+                    📄 OpenAPI JSON Parser
+                </button>
+                <button class="tab-button" onclick="switchTab('ui-scraper')">
+                    🌐 Swagger UI Scraper
+                </button>
+                <button class="tab-button" onclick="switchTab('configuration')">
+                    ⚙️ Configuration
+                </button>
+            </div>
+
+            <div class="content-area">
+                <div id="features" class="tab-content active">
+                    {% include 'tabs/features.html' %}
+                </div>
+
+                <div id="executor" class="tab-content">
+                    {% include 'tabs/executor.html' %}
+                </div>
+
+                <div id="generator" class="tab-content">
+                    {% include 'tabs/generator.html' %}
+                </div>
+
+                <div id="json-parser" class="tab-content">
+                    {% include 'tabs/openapi_parser.html' %}
+                </div>
+
+                <div id="ui-scraper" class="tab-content">
+                    {% include 'tabs/swagger_scraper.html' %}
+                </div>
+
+                <div id="configuration" class="tab-content">
+                    {% include 'tabs/configuration.html' %}
+                </div>
+
+                <div class="status-section" id="statusSection" style="display: none;">
+                    <div class="status-header">
+                        <span id="statusIcon">⏳</span>
+                        <span id="statusText">Running...</span>
                     </div>
                 </div>
 
-                <div class="content-area">
-                    <div id="configuration" class="tab-content active">
-                        {% include 'tabs/configuration.html' %}
-                    </div>
-
-                    <div id="features" class="tab-content">
-                        {% include 'tabs/features.html' %}
-                    </div>
-
-                    <div id="executor" class="tab-content">
-                        {% include 'tabs/executor.html' %}
-                    </div>
-
-                    <div id="generator" class="tab-content">
-                        {% include 'tabs/generator.html' %}
-                    </div>
-
-                    <div id="ui-scraper" class="tab-content">
-                        {% include 'tabs/swagger_scraper.html' %}
-                    </div>
-
-                    <div id="json-parser" class="tab-content">
-                        {% include 'tabs/openapi_parser.html' %}
-                    </div>
-
-                    <div class="status-section" id="statusSection" style="display: none;">
-                        <div class="status-header">
-                            <span id="statusIcon">⏳</span>
-                            <span id="statusText">Running...</span>
-                        </div>
-                    </div>
-
-                    <div class="results-section" id="resultsSection" style="display: none;">
-                        <h3>📋 Results</h3>
-                        <div id="resultsContent"></div>
-                        <div class="logs-container">
-                            <h4>Logs:</h4>
-                            <pre id="logsOutput"></pre>
-                        </div>
+                <div class="results-section" id="resultsSection" style="display: none;">
+                    <h3>📋 Results</h3>
+                    <div id="resultsContent"></div>
+                    <div class="logs-container">
+                        <h4>Logs:</h4>
+                        <pre id="logsOutput"></pre>
                     </div>
                 </div>
             </div>
