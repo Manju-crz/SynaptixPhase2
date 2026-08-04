@@ -487,6 +487,184 @@ main {
     transform: scale(1.02);
 }
 
+/* Sub Section (inside Test Class) */
+.sub-sections-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sub-section {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.sub-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(123, 44, 191, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    user-select: none;
+}
+
+.sub-section-toggle {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: #b388ff;
+    transition: transform 0.3s;
+    width: 12px;
+}
+
+.sub-section.collapsed .sub-section-toggle {
+    transform: rotate(-90deg);
+}
+
+.sub-section-title {
+    color: #b388ff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    flex: 1;
+}
+
+.sub-section-rename-link {
+    font-size: 0.78rem;
+    color: #a0a0a0;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-left: 8px;
+    white-space: nowrap;
+    transition: color 0.2s;
+}
+
+.sub-section-rename-link:hover {
+    color: #b388ff;
+}
+
+.sub-section-rename-editor {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+}
+
+.sub-section-rename-input {
+    padding: 4px 10px;
+    font-size: 0.82rem;
+    border: 1px solid rgba(179, 136, 255, 0.4);
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    width: 180px;
+}
+
+.sub-section-rename-input:focus {
+    outline: none;
+    border-color: #b388ff;
+}
+
+.sub-section-rename-save,
+.sub-section-rename-cancel {
+    padding: 4px 8px;
+    font-size: 0.82rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sub-section-rename-save {
+    background: rgba(0, 255, 136, 0.2);
+    color: #00ff88;
+}
+
+.sub-section-rename-save:hover {
+    background: rgba(0, 255, 136, 0.35);
+}
+
+.sub-section-rename-cancel {
+    background: rgba(255, 71, 87, 0.2);
+    color: #ff4757;
+}
+
+.sub-section-rename-cancel:hover {
+    background: rgba(255, 71, 87, 0.35);
+}
+
+.sub-section.collapsed .sub-section-body {
+    display: none;
+}
+
+.sub-section-close {
+    background: none;
+    border: none;
+    color: #b388ff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.sub-section-close:hover {
+    color: #b388ff;
+    background: rgba(179, 136, 255, 0.15);
+}
+
+.sub-section-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Action buttons inside sub-section (Generate Test Code / Execute Test / Generate Report) */
+.sub-section .sub-section-action-btn {
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #b388ff, #7b2cbf);
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.sub-section .sub-section-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(179, 136, 255, 0.3);
+}
+
+.sub-section .sub-section-action-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.sub-sections-container .sub-section-add-btn {
+    align-self: flex-start;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #b388ff;
+    background: rgba(179, 136, 255, 0.1);
+    border: 1px dashed rgba(179, 136, 255, 0.4);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.sub-sections-container .sub-section-add-btn:hover {
+    background: rgba(179, 136, 255, 0.25);
+    border-color: #b388ff;
+    transform: scale(1.02);
+    box-shadow: 0 6px 20px rgba(179, 136, 255, 0.25);
+}
+
 .input-section input {
     padding: 15px 20px;
     font-size: 1rem;

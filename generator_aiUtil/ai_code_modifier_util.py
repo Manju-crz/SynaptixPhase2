@@ -255,6 +255,110 @@ Return ONLY the complete modified Python test method code, nothing else. Do not 
                 'original_code': original_code
             }
 
+    def replace_method_with_ai_version(
+        self,
+        file_path: str,
+        original_method_name: str,
+        modified_code: str
+    ) -> Dict[str, Any]:
+        """
+        Replace the original method with AI-modified version (with _ai suffix).
+        Removes the original method and adds the AI version in its place.
+
+        Args:
+            file_path: Path to the test file
+            original_method_name: Original method name to replace
+            modified_code: Modified method code
+
+        Returns:
+            Dictionary with operation result
+        """
+        logger.info(f"\n{'='*80}")
+        logger.info(f"💾 REPLACING METHOD WITH AI VERSION")
+        logger.info(f"{'='*80}")
+
+        try:
+            # Read existing file
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Parse the file into AST to find method boundaries
+            tree = ast.parse(content)
+            lines = content.split('\n')
+
+            # Create new method name with _ai suffix
+            new_method_name = f"{original_method_name}_ai"
+
+            # Replace method name in modified code
+            modified_code_with_new_name = modified_code.replace(
+                f"def {original_method_name}(",
+                f"def {new_method_name}(",
+                1
+            )
+
+            # Find the original method to replace
+            method_start_line = None
+            method_end_line = None
+            decorator_start_line = None
+            class_indent = "    "  # Default 4 spaces
+
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef) and node.name == original_method_name:
+                    # Check if method has decorators
+                    if node.decorator_list:
+                        # Start from first decorator
+                        decorator_start_line = node.decorator_list[0].lineno - 1  # 0-indexed
+                    else:
+                        # No decorators, start from method definition
+                        decorator_start_line = node.lineno - 1
+                    
+                    method_start_line = node.lineno - 1  # 0-indexed
+                    method_end_line = node.end_lineno  # 1-indexed, so this is the line after the method
+                    break
+
+            if method_start_line is None:
+                logger.warning(f"⚠️  Original method '{original_method_name}' not found, appending AI method instead")
+                # If original method not found, append the AI method
+                return self.append_modified_method_to_file(file_path, original_method_name, modified_code)
+
+            logger.info(f"  Found original method at lines {decorator_start_line + 1}-{method_end_line} (including decorators)")
+
+            # Indent the modified code to be inside the class
+            indented_lines = []
+            for line in modified_code_with_new_name.split('\n'):
+                if line.strip():  # Non-empty line
+                    indented_lines.append(class_indent + line)
+                else:  # Empty line
+                    indented_lines.append(line)
+
+            indented_code = '\n'.join(indented_lines)
+
+            # Replace the original method (including decorators) with AI version
+            new_lines = lines[:decorator_start_line] + [indented_code] + lines[method_end_line:]
+
+            # Write back to file
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(new_lines))
+
+            logger.info(f"✅ Method replaced successfully")
+            logger.info(f"  Original method: {original_method_name} (removed)")
+            logger.info(f"  New method: {new_method_name} (replaced at same position)")
+            logger.info(f"  File: {file_path}")
+
+            return {
+                'success': True,
+                'new_method_name': new_method_name,
+                'file_path': file_path,
+                'replaced': True
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Error replacing method: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
     def append_modified_method_to_file(
         self,
         file_path: str,
@@ -351,10 +455,11 @@ def modify_generated_code_with_ai(
     original_code: str,
     excel_data: List[Dict[str, Any]],
     queries: List[str],
-    ai_provider: str = "openai"
+    ai_provider: str = "openai",
+    replace_original: bool = True
 ) -> Dict[str, Any]:
     """
-    Convenience function to modify generated code and append to file.
+    Convenience function to modify generated code and replace/append to file.
 
     Args:
         file_path: Path to the test file
@@ -363,6 +468,7 @@ def modify_generated_code_with_ai(
         excel_data: Extracted Excel data for each step
         queries: Natural language queries with instructions
         ai_provider: AI provider to use
+        replace_original: If True, replace original method with AI version; if False, append
 
     Returns:
         Dictionary with operation result
@@ -375,21 +481,29 @@ def modify_generated_code_with_ai(
     if not result['success']:
         return result
 
-    # Append to file
-    append_result = modifier.append_modified_method_to_file(
-        file_path,
-        method_name,
-        result['modified_code']
-    )
+    # Replace or append to file based on flag
+    if replace_original:
+        file_result = modifier.replace_method_with_ai_version(
+            file_path,
+            method_name,
+            result['modified_code']
+        )
+    else:
+        file_result = modifier.append_modified_method_to_file(
+            file_path,
+            method_name,
+            result['modified_code']
+        )
 
-    if append_result['success']:
+    if file_result['success']:
         return {
             'success': True,
-            'new_method_name': append_result['new_method_name'],
-            'file_path': append_result['file_path'],
+            'new_method_name': file_result['new_method_name'],
+            'file_path': file_result['file_path'],
             'modified_code': result['modified_code'],
             'ai_provider': result['ai_provider'],
-            'instructions_applied': result['instructions_applied']
+            'instructions_applied': result['instructions_applied'],
+            'replaced': file_result.get('replaced', False)
         }
     else:
-        return append_result
+        return file_result

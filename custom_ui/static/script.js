@@ -46,10 +46,14 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAiModelConfig();
 });
 
-function switchOutputTab(tabName, compNum, classNum) {
-    // Scope to the specific test class section if both compNum and classNum are provided
+function switchOutputTab(tabName, compNum, classNum, subNum) {
+    // Scope to the specific sub-section if all of compNum, classNum and subNum are provided;
+    // otherwise fall back to test class section, then component panel.
     let scope = document;
-    if (compNum && classNum) {
+    if (compNum && classNum && subNum) {
+        const subSection = document.getElementById(`subSection_${compNum}_${classNum}_${subNum}`);
+        if (subSection) scope = subSection;
+    } else if (compNum && classNum) {
         const section = document.getElementById(`testClass_${compNum}_${classNum}`);
         if (section) scope = section;
     } else if (compNum) {
@@ -121,6 +125,9 @@ let activeTestComponent = 1;
 // Per-component test class counters
 let testClassCounters = {};
 
+// Per-test-class sub-section counters (keyed by `${compNum}_${classNum}`)
+let subSectionCounters = {};
+
 function createTestClassHTML(compNum, classNum) {
     const id = `${compNum}_${classNum}`;
     const closeBtn = `<button class="tc-class-close" onclick="removeTestClass(${compNum}, ${classNum}, event)" title="Remove Test Class">&times;</button>`;
@@ -138,62 +145,123 @@ function createTestClassHTML(compNum, classNum) {
                 ${closeBtn}
             </div>
             <div class="test-class-body" id="testClassBody_${id}">
-                <label for="generatorQueryInput_${id}">💬 Natural Language Test case Prompt:</label>
+                <div class="sub-sections-container" id="subSectionsContainer_${id}">
+                    <button class="sub-section-add-btn" onclick="addSubSection(${compNum}, ${classNum})" title="Add new Test Method">+ Add Test Method</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function createSubSectionHTML(compNum, classNum, subNum) {
+    const id = `${compNum}_${classNum}`;
+    const subId = `${id}_${subNum}`;
+    const closeBtn = `<button class="sub-section-close" onclick="removeSubSection(${compNum}, ${classNum}, ${subNum}, event)" title="Remove Sub Section">&times;</button>`;
+    return `
+        <div class="sub-section" id="subSection_${subId}">
+            <div class="sub-section-header" onclick="toggleSubSectionBody('${id}', ${subNum})">
+                <span class="sub-section-toggle">▼</span>
+                <span class="sub-section-title" id="subSectionTitle_${subId}">📝 TestMethod_${String(subNum).padStart(2, '0')}</span>
+                <a href="javascript:void(0)" class="sub-section-rename-link" onclick="showRenameSubSectionInput('${id}', ${subNum}, event)" title="Rename Sub Section">Rename Sub Section</a>
+                <div class="sub-section-rename-editor" id="subSectionRenameEditor_${subId}" style="display: none;">
+                    <input type="text" id="subSectionRenameInput_${subId}" placeholder="Enter new name" class="sub-section-rename-input">
+                    <button class="sub-section-rename-save" onclick="saveSubSectionName('${id}', ${subNum}, event)" title="Save">✓</button>
+                    <button class="sub-section-rename-cancel" onclick="cancelRenameSubSection('${id}', ${subNum}, event)" title="Cancel">✕</button>
+                </div>
+                ${closeBtn}
+            </div>
+            <div class="sub-section-body" id="subSectionBody_${subId}">
+                <label for="generatorQueryInput_${subId}">💬 Natural Language Test case Prompt:</label>
                 <textarea
-                    id="generatorQueryInput_${id}"
+                    id="generatorQueryInput_${subId}"
                     placeholder="Example: Create a new pet in the pet store&#10;Multiple queries: Create a new pet; Update pet information; Delete a pet&#10;&#10;Note: Each query will generate a separate test method"
                     rows="4"
                     class="textarea-input"
                 ></textarea>
 
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
-                    <button id="runGeneratorBtn_${id}" onclick="runGenerator(${compNum}, ${classNum})" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
+                    <button class="sub-section-action-btn" id="runGeneratorBtn_${subId}" onclick="runGenerator(${compNum}, ${classNum}, ${subNum})" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
                         ⚡ Generate Test Code
                     </button>
 
-                    <button id="executeTestBtn_${id}" onclick="executeGeneratedTest(${compNum}, ${classNum})" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
+                    <button class="sub-section-action-btn" id="executeTestBtn_${subId}" onclick="executeGeneratedTest(${compNum}, ${classNum}, ${subNum})" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
                         ▶️ Execute Test
                     </button>
 
-                    <button id="showReportBtn_${id}" onclick="showAllureReport(${compNum}, ${classNum})" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
+                    <button class="sub-section-action-btn" id="showReportBtn_${subId}" onclick="showAllureReport(${compNum}, ${classNum}, ${subNum})" style="flex: 1; min-width: 150px; padding: 10px 15px; font-size: 0.9em;">
                         📊 Generate Report
                     </button>
                 </div>
 
-                <div id="generatorStatus_${id}" class="status-section" style="display: none; margin-top: 15px;">
-                    <span id="generatorStatusIcon_${id}">⏳</span>
-                    <span id="generatorStatusText_${id}">Processing...</span>
+                <div id="generatorStatus_${subId}" class="status-section" style="display: none; margin-top: 15px;">
+                    <span id="generatorStatusIcon_${subId}">⏳</span>
+                    <span id="generatorStatusText_${subId}">Processing...</span>
                 </div>
 
                 <!-- Output Tabs -->
-                <div id="outputTabsContainer_${id}" style="display: none; margin-top: 20px;">
+                <div id="outputTabsContainer_${subId}" style="display: none; margin-top: 20px;">
                     <div style="display: flex; gap: 10px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); margin-bottom: 15px;">
-                        <button class="output-tab-button active" data-comp="${compNum}" data-class="${classNum}" data-output="generation-results_${id}" onclick="switchOutputTab('generation-results_${id}', ${compNum}, ${classNum})" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                        <button class="output-tab-button active" data-comp="${compNum}" data-class="${classNum}" data-sub="${subNum}" data-output="generation-results_${subId}" onclick="switchOutputTab('generation-results_${subId}', ${compNum}, ${classNum}, ${subNum})" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
                             📄 Generation Results
                         </button>
-                        <button class="output-tab-button" data-comp="${compNum}" data-class="${classNum}" data-output="execution-logs_${id}" onclick="switchOutputTab('execution-logs_${id}', ${compNum}, ${classNum})" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                        <button class="output-tab-button" data-comp="${compNum}" data-class="${classNum}" data-sub="${subNum}" data-output="execution-logs_${subId}" onclick="switchOutputTab('execution-logs_${subId}', ${compNum}, ${classNum}, ${subNum})" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
                             🔍 Execution Logs
                         </button>
-                        <button class="output-tab-button" data-comp="${compNum}" data-class="${classNum}" data-output="report-status_${id}" onclick="switchOutputTab('report-status_${id}', ${compNum}, ${classNum})" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
+                        <button class="output-tab-button" data-comp="${compNum}" data-class="${classNum}" data-sub="${subNum}" data-output="report-status_${subId}" onclick="switchOutputTab('report-status_${subId}', ${compNum}, ${classNum}, ${subNum})" style="padding: 10px 20px; font-size: 0.9em; border: none; background: transparent; color: #a0a0a0; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s;">
                             📊 Report Status
                         </button>
                     </div>
 
-                    <div id="generation-results_${id}" class="output-tab-content active" style="display: block;">
-                        <div id="generationResultsContent_${id}"></div>
+                    <div id="generation-results_${subId}" class="output-tab-content active" style="display: block;">
+                        <div id="generationResultsContent_${subId}"></div>
                     </div>
 
-                    <div id="execution-logs_${id}" class="output-tab-content" style="display: none;">
-                        <div id="executionLogsContent_${id}"></div>
+                    <div id="execution-logs_${subId}" class="output-tab-content" style="display: none;">
+                        <div id="executionLogsContent_${subId}"></div>
                     </div>
 
-                    <div id="report-status_${id}" class="output-tab-content" style="display: none;">
-                        <div id="reportStatusContent_${id}"></div>
+                    <div id="report-status_${subId}" class="output-tab-content" style="display: none;">
+                        <div id="reportStatusContent_${subId}"></div>
                     </div>
                 </div>
             </div>
         </div>
     `;
+}
+
+function addSubSection(compNum, classNum) {
+    const id = `${compNum}_${classNum}`;
+    if (!subSectionCounters[id]) subSectionCounters[id] = 0;
+    subSectionCounters[id]++;
+    const subNum = subSectionCounters[id];
+
+    const container = document.getElementById(`subSectionsContainer_${id}`);
+    if (!container) return;
+
+    // Insert new sub-section before the add button
+    const addBtn = container.querySelector('.sub-section-add-btn');
+    const html = createSubSectionHTML(compNum, classNum, subNum);
+    addBtn.insertAdjacentHTML('beforebegin', html);
+}
+
+function removeSubSection(compNum, classNum, subNum, event) {
+    if (event) event.stopPropagation();
+    const id = `${compNum}_${classNum}`;
+    const container = document.getElementById(`subSectionsContainer_${id}`);
+    if (!container) return;
+    const sections = container.querySelectorAll('.sub-section');
+    if (sections.length <= 1) return; // Don't remove the last one
+
+    const section = document.getElementById(`subSection_${id}_${subNum}`);
+    if (section) section.remove();
+}
+
+function toggleSubSectionBody(id, subNum) {
+    const subId = `${id}_${subNum}`;
+    const body = document.getElementById(`subSectionBody_${subId}`);
+    const section = document.getElementById(`subSection_${subId}`);
+    if (!body || !section) return;
+    section.classList.toggle('collapsed');
 }
 
 function addTestClass(compNum) {
@@ -208,6 +276,9 @@ function addTestClass(compNum) {
     const addBtn = container.querySelector('.tc-class-add-btn');
     const html = createTestClassHTML(compNum, classNum);
     addBtn.insertAdjacentHTML('beforebegin', html);
+
+    // Create the first sub-section for this test class
+    addSubSection(compNum, classNum);
 }
 
 function removeTestClass(compNum, classNum, event) {
@@ -220,6 +291,9 @@ function removeTestClass(compNum, classNum, event) {
 
     const section = document.getElementById(`testClass_${compNum}_${classNum}`);
     if (section) section.remove();
+
+    // Clean up sub-section counters for this test class
+    delete subSectionCounters[`${compNum}_${classNum}`];
 }
 
 function toggleTestClassBody(id) {
@@ -230,24 +304,24 @@ function toggleTestClassBody(id) {
 }
 
 function setTestClassBodyDisabled(id, disabled) {
-    const body = document.getElementById(`testClassBody_${id}`);
-    if (!body) return;
-    const prompt = document.getElementById(`generatorQueryInput_${id}`);
-    const runBtn = document.getElementById(`runGeneratorBtn_${id}`);
-    const execBtn = document.getElementById(`executeTestBtn_${id}`);
-    const reportBtn = document.getElementById(`showReportBtn_${id}`);
+    const section = document.getElementById(`testClass_${id}`);
+    if (!section) return;
 
-    if (prompt) {
+    // Disable/enable all sub-section prompts within this test class
+    const prompts = section.querySelectorAll('textarea[id^="generatorQueryInput_"]');
+    prompts.forEach(prompt => {
         prompt.disabled = disabled;
         prompt.style.opacity = disabled ? '0.5' : '1';
         prompt.style.cursor = disabled ? 'not-allowed' : 'text';
-    }
-    [runBtn, execBtn, reportBtn].forEach(btn => {
-        if (btn) {
-            btn.disabled = disabled;
-            btn.style.opacity = disabled ? '0.5' : '1';
-            btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
-        }
+    });
+
+    // Disable/enable all action buttons within this test class
+    const btnSelector = 'button[id^="runGeneratorBtn_"], button[id^="executeTestBtn_"], button[id^="showReportBtn_"]';
+    const buttons = section.querySelectorAll(btnSelector);
+    buttons.forEach(btn => {
+        btn.disabled = disabled;
+        btn.style.opacity = disabled ? '0.5' : '1';
+        btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
     });
 }
 
@@ -302,6 +376,85 @@ function cancelRenameTestClass(id, event) {
 
     // Re-enable the body elements
     setTestClassBodyDisabled(id, false);
+}
+
+// ===== Sub Section rename helpers =====
+
+function setSubSectionBodyDisabled(id, subNum, disabled) {
+    const subId = `${id}_${subNum}`;
+    const prompt = document.getElementById(`generatorQueryInput_${subId}`);
+    const runBtn = document.getElementById(`runGeneratorBtn_${subId}`);
+    const execBtn = document.getElementById(`executeTestBtn_${subId}`);
+    const reportBtn = document.getElementById(`showReportBtn_${subId}`);
+
+    if (prompt) {
+        prompt.disabled = disabled;
+        prompt.style.opacity = disabled ? '0.5' : '1';
+        prompt.style.cursor = disabled ? 'not-allowed' : 'text';
+    }
+    [runBtn, execBtn, reportBtn].forEach(btn => {
+        if (btn) {
+            btn.disabled = disabled;
+            btn.style.opacity = disabled ? '0.5' : '1';
+            btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+        }
+    });
+}
+
+function showRenameSubSectionInput(id, subNum, event) {
+    if (event) event.stopPropagation();
+    const subId = `${id}_${subNum}`;
+    const titleSpan = document.getElementById(`subSectionTitle_${subId}`);
+    const editor = document.getElementById(`subSectionRenameEditor_${subId}`);
+    const input = document.getElementById(`subSectionRenameInput_${subId}`);
+    if (!titleSpan || !editor || !input) return;
+
+    // Strip emoji prefix for the default value
+    const currentText = titleSpan.textContent;
+    const currentName = currentText.replace(/^[^\p{L}\p{N}]+\s*/u, '');
+    input.value = currentName;
+
+    titleSpan.style.display = 'none';
+    editor.style.display = 'inline-flex';
+    input.focus();
+    input.select();
+
+    // Disable the body elements during editing
+    setSubSectionBodyDisabled(id, subNum, true);
+}
+
+function saveSubSectionName(id, subNum, event) {
+    if (event) event.stopPropagation();
+    const subId = `${id}_${subNum}`;
+    const titleSpan = document.getElementById(`subSectionTitle_${subId}`);
+    const editor = document.getElementById(`subSectionRenameEditor_${subId}`);
+    const input = document.getElementById(`subSectionRenameInput_${subId}`);
+    if (!titleSpan || !editor || !input) return;
+
+    const newName = input.value.trim();
+    if (!newName) {
+        alert('Sub Section name cannot be empty');
+        return;
+    }
+    titleSpan.textContent = `📝 ${newName}`;
+    titleSpan.style.display = '';
+    editor.style.display = 'none';
+
+    // Re-enable the body elements
+    setSubSectionBodyDisabled(id, subNum, false);
+}
+
+function cancelRenameSubSection(id, subNum, event) {
+    if (event) event.stopPropagation();
+    const subId = `${id}_${subNum}`;
+    const titleSpan = document.getElementById(`subSectionTitle_${subId}`);
+    const editor = document.getElementById(`subSectionRenameEditor_${subId}`);
+    if (!titleSpan || !editor) return;
+    titleSpan.style.display = '';
+    editor.style.display = 'none';
+
+    // Re-enable the body elements
+    setSubSectionBodyDisabled(id, subNum, false);
 }
 
 function createTestComponentHTML(num) {
@@ -492,6 +645,13 @@ function removeTestComponent(num, event) {
 
     // Clean up test class counter for this component
     delete testClassCounters[num];
+
+    // Clean up sub-section counters for all test classes in this component
+    Object.keys(subSectionCounters).forEach(key => {
+        if (key.startsWith(`${num}_`)) {
+            delete subSectionCounters[key];
+        }
+    });
 }
 
 function initTestComponents() {
@@ -826,19 +986,21 @@ async function runExecutor() {
     }
 }
 
-async function runGenerator(compNum, classNum) {
+async function runGenerator(compNum, classNum, subNum) {
     const num = compNum || activeTestComponent || 1;
     const cls = classNum || (testClassCounters[num] ? testClassCounters[num] : 1);
+    const sub = subNum || (subSectionCounters[`${num}_${cls}`] ? subSectionCounters[`${num}_${cls}`] : 1);
     const id = `${num}_${cls}`;
+    const subId = `${id}_${sub}`;
     const excelFileSelect = document.getElementById('generatorExcelFileSelect');
     const baseUrlSelect = document.getElementById('generatorBaseUrlSelect');
     const customBaseUrlInput = document.getElementById('generatorCustomBaseUrl');
     const folderNameInput = document.getElementById(`generatorFolderName_${num}`);
-    const queryInput = document.getElementById(`generatorQueryInput_${id}`);
-    const runBtn = document.getElementById(`runGeneratorBtn_${id}`);
-    const statusSection = document.getElementById(`generatorStatus_${id}`);
-    const statusIcon = document.getElementById(`generatorStatusIcon_${id}`);
-    const statusText = document.getElementById(`generatorStatusText_${id}`);
+    const queryInput = document.getElementById(`generatorQueryInput_${subId}`);
+    const runBtn = document.getElementById(`runGeneratorBtn_${subId}`);
+    const statusSection = document.getElementById(`generatorStatus_${subId}`);
+    const statusIcon = document.getElementById(`generatorStatusIcon_${subId}`);
+    const statusText = document.getElementById(`generatorStatusText_${subId}`);
 
     // Derive file name from the Test Class title (strip emoji prefix)
     const titleSpan = document.getElementById(`testClassTitle_${id}`);
@@ -908,6 +1070,28 @@ async function runGenerator(compNum, classNum) {
             statusIcon.textContent = '✅';
             statusText.textContent = 'Test code generated successfully!';
 
+            // Update sub-section title to show the generated method name
+            const subTitleSpan = document.getElementById(`subSectionTitle_${subId}`);
+            if (subTitleSpan) {
+                // Determine the final method name (prefer AI-modified version if present)
+                let generatedMethodName = '';
+                if (result.generated_code && result.generated_code.length > 0) {
+                    // Find AI-modified method, otherwise use the last method
+                    const aiMethod = result.generated_code.find(m => m.ai_modified);
+                    generatedMethodName = aiMethod ? aiMethod.method_name : result.generated_code[result.generated_code.length - 1].method_name;
+                } else if (result.generated_method_names && result.generated_method_names.length > 0) {
+                    generatedMethodName = result.generated_method_names[result.generated_method_names.length - 1];
+                }
+
+                if (generatedMethodName) {
+                    // Preserve the emoji prefix and original label, append the method name
+                    const currentText = subTitleSpan.textContent;
+                    const emojiPrefix = currentText.match(/^[^\p{L}\p{N}]+\s*/u)?.[0] || '';
+                    const labelPart = currentText.replace(/^[^\p{L}\p{N}]+\s*/u, '').split(/\s*:\s*/)[0].trim();
+                    subTitleSpan.textContent = `${emojiPrefix}${labelPart} : ${generatedMethodName}`;
+                }
+            }
+
             // Fade out after 3 seconds
             setTimeout(() => {
                 statusSection.classList.add('fade-out');
@@ -924,14 +1108,14 @@ async function runGenerator(compNum, classNum) {
         }
 
         // Show output tabs container and switch to Generation Results tab
-        const outputTabsContainer = document.getElementById(`outputTabsContainer_${id}`);
+        const outputTabsContainer = document.getElementById(`outputTabsContainer_${subId}`);
         console.log('Output tabs container:', outputTabsContainer);
         outputTabsContainer.style.display = 'block';
 
         // Switch to generation results tab
-        switchOutputTab(`generation-results_${id}`, num, cls);
+        switchOutputTab(`generation-results_${subId}`, num, cls, sub);
 
-        const generationResultsContent = document.getElementById(`generationResultsContent_${id}`);
+        const generationResultsContent = document.getElementById(`generationResultsContent_${subId}`);
         console.log('Generation results content element:', generationResultsContent);
 
         let resultsHTML = '';
@@ -1005,7 +1189,7 @@ async function runGenerator(compNum, classNum) {
         console.log('Results HTML set successfully');
 
         // Display logs in Execution Logs tab (including validation logs)
-        const executionLogsContent = document.getElementById(`executionLogsContent_${id}`);
+        const executionLogsContent = document.getElementById(`executionLogsContent_${subId}`);
         if (executionLogsContent && result.logs && result.logs.length > 0) {
             let logsHTML = '<div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 8px;">';
             logsHTML += '<h4 style="color: #00d4ff; margin-top: 0;">📋 Generation & Validation Logs</h4>';
@@ -1136,14 +1320,16 @@ async function loadExcelFilesForGenerator() {
     }
 }
 
-async function executeGeneratedTest(compNum, classNum) {
+async function executeGeneratedTest(compNum, classNum, subNum) {
     const num = compNum || activeTestComponent || 1;
     const cls = classNum || (testClassCounters[num] ? testClassCounters[num] : 1);
+    const sub = subNum || (subSectionCounters[`${num}_${cls}`] ? subSectionCounters[`${num}_${cls}`] : 1);
     const id = `${num}_${cls}`;
-    const executeBtn = document.getElementById(`executeTestBtn_${id}`);
-    const statusSection = document.getElementById(`generatorStatus_${id}`);
-    const statusIcon = document.getElementById(`generatorStatusIcon_${id}`);
-    const statusText = document.getElementById(`generatorStatusText_${id}`);
+    const subId = `${id}_${sub}`;
+    const executeBtn = document.getElementById(`executeTestBtn_${subId}`);
+    const statusSection = document.getElementById(`generatorStatus_${subId}`);
+    const statusIcon = document.getElementById(`generatorStatusIcon_${subId}`);
+    const statusText = document.getElementById(`generatorStatusText_${subId}`);
 
     // Get folder name from UI; derive file name from Test Class title
     const folderNameInput = document.getElementById(`generatorFolderName_${num}`);
@@ -1153,9 +1339,28 @@ async function executeGeneratedTest(compNum, classNum) {
     const titleSpan = document.getElementById(`testClassTitle_${id}`);
     const fileName = titleSpan ? titleSpan.textContent.replace(/^[^\p{L}\p{N}]+\s*/u, '').trim() : `TestClass_${String(cls).padStart(2, '0')}`;
 
+    // Extract the generated method name from the sub-section title
+    // Format after generation: "📝 TestMethod_01 : test_01_..._ai"
+    const subTitleSpan = document.getElementById(`subSectionTitle_${subId}`);
+    let methodName = null;
+    if (subTitleSpan) {
+        const titleText = subTitleSpan.textContent;
+        console.log(`Execute Test - sub-section title text: "${titleText}"`);
+        const colonIndex = titleText.indexOf(':');
+        if (colonIndex !== -1) {
+            methodName = titleText.substring(colonIndex + 1).trim();
+        }
+    }
+    console.log(`Execute Test - extracted method_name: "${methodName}"`);
+
     // Validation
     if (!folderName) {
         alert('Please enter a folder name');
+        return;
+    }
+
+    if (!methodName) {
+        alert('Please generate test code first to create a test method');
         return;
     }
 
@@ -1179,7 +1384,8 @@ async function executeGeneratedTest(compNum, classNum) {
             },
             body: JSON.stringify({
                 folder_name: folderName,
-                file_name: fileName
+                file_name: fileName,
+                method_name: methodName
             })
         });
 
@@ -1239,14 +1445,14 @@ async function executeGeneratedTest(compNum, classNum) {
             }, 3000);
 
             // Show output tabs container and switch to Execution Logs tab
-            const outputTabsContainer = document.getElementById(`outputTabsContainer_${id}`);
+            const outputTabsContainer = document.getElementById(`outputTabsContainer_${subId}`);
             outputTabsContainer.style.display = 'block';
 
             // Switch to execution logs tab
-            switchOutputTab(`execution-logs_${id}`, num, cls);
+            switchOutputTab(`execution-logs_${subId}`, num, cls, sub);
 
             // Show test output in execution logs
-            const executionLogsContent = document.getElementById(`executionLogsContent_${id}`);
+            const executionLogsContent = document.getElementById(`executionLogsContent_${subId}`);
             let logHTML = '<div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px;">';
             logHTML += '<h4 style="color: #00d4ff; margin-bottom: 15px;">🧪 Test Execution Details</h4>';
             logHTML += '<div class="result-item"><strong>Command:</strong> <code style="color: #00ff88;">' + result.command + '</code></div>';
@@ -1276,14 +1482,14 @@ async function executeGeneratedTest(compNum, classNum) {
             statusText.textContent = 'Test execution failed: ' + result.message;
 
             // Show output tabs container and switch to Execution Logs tab
-            const outputTabsContainer = document.getElementById(`outputTabsContainer_${id}`);
+            const outputTabsContainer = document.getElementById(`outputTabsContainer_${subId}`);
             outputTabsContainer.style.display = 'block';
 
             // Switch to execution logs tab
-            switchOutputTab(`execution-logs_${id}`, num, cls);
+            switchOutputTab(`execution-logs_${subId}`, num, cls, sub);
 
             // Show error in execution logs
-            const executionLogsContent = document.getElementById(`executionLogsContent_${id}`);
+            const executionLogsContent = document.getElementById(`executionLogsContent_${subId}`);
             let errorHTML = '<div style="background: rgba(255,71,87,0.1); padding: 15px; border-radius: 8px;">';
             errorHTML += '<h4 style="color: #ff4757; margin-bottom: 15px;">❌ Test Execution Failed</h4>';
             errorHTML += '<div class="result-item"><strong>Message:</strong> ' + result.message + '</div>';
@@ -1317,14 +1523,16 @@ async function executeGeneratedTest(compNum, classNum) {
     }
 }
 
-async function showAllureReport(compNum, classNum) {
+async function showAllureReport(compNum, classNum, subNum) {
     const num = compNum || activeTestComponent || 1;
     const cls = classNum || (testClassCounters[num] ? testClassCounters[num] : 1);
+    const sub = subNum || (subSectionCounters[`${num}_${cls}`] ? subSectionCounters[`${num}_${cls}`] : 1);
     const id = `${num}_${cls}`;
-    const reportBtn = document.getElementById(`showReportBtn_${id}`);
-    const statusSection = document.getElementById(`generatorStatus_${id}`);
-    const statusIcon = document.getElementById(`generatorStatusIcon_${id}`);
-    const statusText = document.getElementById(`generatorStatusText_${id}`);
+    const subId = `${id}_${sub}`;
+    const reportBtn = document.getElementById(`showReportBtn_${subId}`);
+    const statusSection = document.getElementById(`generatorStatus_${subId}`);
+    const statusIcon = document.getElementById(`generatorStatusIcon_${subId}`);
+    const statusText = document.getElementById(`generatorStatusText_${subId}`);
 
     console.log('Opening Allure report...');
 
@@ -1351,11 +1559,11 @@ async function showAllureReport(compNum, classNum) {
         statusIcon.className = '';
 
         // Show output tabs container and switch to Report Status tab
-        const outputTabsContainer = document.getElementById(`outputTabsContainer_${id}`);
+        const outputTabsContainer = document.getElementById(`outputTabsContainer_${subId}`);
         outputTabsContainer.style.display = 'block';
-        switchOutputTab(`report-status_${id}`, num, cls);
+        switchOutputTab(`report-status_${subId}`, num, cls, sub);
 
-        const reportStatusContent = document.getElementById(`reportStatusContent_${id}`);
+        const reportStatusContent = document.getElementById(`reportStatusContent_${subId}`);
 
         if (result.success) {
             statusSection.className = 'status-section success';

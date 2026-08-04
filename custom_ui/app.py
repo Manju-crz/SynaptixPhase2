@@ -268,7 +268,15 @@ def run_generator():
             try:
                 logs.append(f"\n📄 Reading generated test methods...")
                 reader = TestMethodReader(result['file_path'])
-                all_methods = reader.get_all_test_methods()
+
+                # Use only the newly generated method names (not all methods in the file)
+                # so that appending to an existing file doesn't re-read old methods
+                new_method_names = result.get('generated_method_names', [])
+                if new_method_names:
+                    all_methods = new_method_names
+                    logs.append(f"   Newly generated methods: {new_method_names}")
+                else:
+                    all_methods = reader.get_all_test_methods()
 
                 generated_code = []
                 for method_name in all_methods:
@@ -310,11 +318,15 @@ def run_generator():
                             original_code=original_code,
                             excel_data=excel_data,
                             queries=queries,
-                            ai_provider=ai_model
+                            ai_provider=ai_model,
+                            replace_original=True  # Replace original method with AI version
                         )
 
                         if ai_result['success']:
-                            logs.append(f"   ✅ AI-modified method created: {ai_result['new_method_name']}")
+                            if ai_result.get('replaced'):
+                                logs.append(f"   ✅ Original method replaced with AI version: {ai_result['new_method_name']}")
+                            else:
+                                logs.append(f"   ✅ AI-modified method created: {ai_result['new_method_name']}")
                             logs.append(f"   Instructions applied: {ai_result['instructions_applied']}")
 
                             # Read the AI-modified method
@@ -322,6 +334,7 @@ def run_generator():
                             ai_method_result = reader_ai.read_test_method(ai_result['new_method_name'])
 
                             if ai_method_result['success']:
+                                # Add AI method to generated_code list (keep both for UI display)
                                 generated_code.append({
                                     'method_name': ai_result['new_method_name'],
                                     'code': ai_method_result['code'],
@@ -331,6 +344,7 @@ def run_generator():
                                 })
                                 result['generated_code'] = generated_code
                                 logs.append(f"   ✅ AI-modified code added to results")
+                                logs.append(f"   📝 Note: File contains only AI method, UI shows both for reference")
                         else:
                             logs.append(f"   ⚠️ AI modification failed: {ai_result.get('error')}")
 
@@ -391,14 +405,14 @@ def run_generator():
         }), 500
 
 
-def execute_test_in_background(test_id, folder_name, file_name, project_root):
+def execute_test_in_background(test_id, folder_name, file_name, project_root, method_name=None):
     """Background thread function to execute pytest command"""
     import logging
     logger = logging.getLogger(__name__)
 
     try:
         logger.info(f"[Thread {test_id}] Building pytest command...")
-        pytest_command = build_pytest_command(folder_name, file_name)
+        pytest_command = build_pytest_command(folder_name, file_name, method_name=method_name)
 
         if not pytest_command:
             test_execution_results[test_id] = {
@@ -449,8 +463,9 @@ def execute_generated_test():
         data = request.get_json()
         folder_name = data.get('folder_name')
         file_name = data.get('file_name')
+        method_name = data.get('method_name')
 
-        logger.info(f"Received from UI - folder: {folder_name}, file: {file_name}")
+        logger.info(f"Received from UI - folder: {folder_name}, file: {file_name}, method: {method_name}")
 
         if not folder_name or not file_name:
             logger.error("Missing folder_name or file_name from UI")
@@ -473,7 +488,7 @@ def execute_generated_test():
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         thread = threading.Thread(
             target=execute_test_in_background,
-            args=(test_id, folder_name, file_name, project_root),
+            args=(test_id, folder_name, file_name, project_root, method_name),
             daemon=True
         )
         thread.start()

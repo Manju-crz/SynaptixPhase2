@@ -30,7 +30,8 @@ class CommandBuilder:
         file_name: str,
         include_allure: bool = True,
         verbose: bool = True,
-        show_output: bool = True
+        show_output: bool = True,
+        method_name: str = None
     ) -> Optional[str]:
         """
         Build pytest command string for executing AI-generated test method.
@@ -41,15 +42,18 @@ class CommandBuilder:
             include_allure: Whether to include --alluredir flag (default: True)
             verbose: Whether to include -v flag (default: True)
             show_output: Whether to include -s flag (default: True)
+            method_name: Specific test method name to execute. If provided, this
+                        method is targeted directly. If None, falls back to finding
+                        the first AI test method (ending with _ai) in the file.
 
         Returns:
             Formatted pytest command string or None if error
 
         Example:
             >>> builder = CommandBuilder()
-            >>> cmd = builder.build_pytest_command("test8", "test8")
+            >>> cmd = builder.build_pytest_command("test8", "test8", method_name="test_02_update_pet_ai")
             >>> print(cmd)
-            pytest .\\rest_test\\test8\\test8.py::TestGeneratedAPIs::test_01_create_a_new_pet_ai -v -s --alluredir=allure-results
+            pytest .\\rest_test\\test8\\test8.py::TestGeneratedAPIs::test_02_update_pet_ai -v -s --alluredir=allure-results
         """
         try:
             # Build file path
@@ -66,17 +70,23 @@ class CommandBuilder:
                 logger.error(f"No test class found in {file_path}")
                 return None
 
-            # Find AI test method
-            ai_method_name = self._find_ai_test_method(file_path, class_name)
-            if not ai_method_name:
-                logger.error(f"No AI test method (ending with _ai) found in {file_path}")
-                return None
+            # Determine which method to execute
+            if method_name:
+                # Use the explicitly provided method name
+                target_method = method_name
+                logger.info(f"Using specified test method: {target_method}")
+            else:
+                # Fall back to finding the first AI test method
+                target_method = self._find_ai_test_method(file_path, class_name)
+                if not target_method:
+                    logger.error(f"No AI test method (ending with _ai) found in {file_path}")
+                    return None
 
             # Build relative path for pytest
             relative_path = f".\\rest_test\\{folder_name}\\{file_name}.py"
 
             # Build command - concatenate path and test selector without space
-            test_selector = f"{relative_path}::{class_name}::{ai_method_name}"
+            test_selector = f"{relative_path}::{class_name}::{target_method}"
 
             command_parts = [
                 "pytest",
@@ -201,7 +211,8 @@ def build_pytest_command(
     folder_name: str,
     file_name: str,
     include_allure: bool = True,
-    project_root: str = None
+    project_root: str = None,
+    method_name: str = None
 ) -> Optional[str]:
     """
     Convenience function to build pytest command string.
@@ -211,16 +222,18 @@ def build_pytest_command(
         file_name: Test file name without .py (e.g., "test8")
         include_allure: Whether to include --alluredir flag
         project_root: Project root directory
+        method_name: Specific test method name to execute (optional). If None,
+                    falls back to the first AI test method in the file.
 
     Returns:
         Formatted pytest command string or None
 
     Example:
-        >>> cmd = build_pytest_command("test8", "test8")
+        >>> cmd = build_pytest_command("test8", "test8", method_name="test_02_update_pet_ai")
         >>> print(cmd)
-        pytest .\\rest_test\\test8\\test8.py::TestGeneratedAPIs::test_01_create_a_new_pet_ai -v -s --alluredir=allure-results
+        pytest .\\rest_test\\test8\\test8.py::TestGeneratedAPIs::test_02_update_pet_ai -v -s --alluredir=allure-results
     """
     builder = CommandBuilder(project_root)
-    return builder.build_pytest_command(folder_name, file_name, include_allure)
+    return builder.build_pytest_command(folder_name, file_name, include_allure, method_name=method_name)
 
     

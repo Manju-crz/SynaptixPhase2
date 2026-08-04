@@ -3,9 +3,11 @@ Code Generator Utility - Dynamically generates pytest test files based on natura
 """
 
 import os
+import re
+import ast
 import json
 import logging
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 from datetime import datetime
 from openpyxl import load_workbook
 
@@ -412,7 +414,9 @@ class CodeGenerator:
 
         return {'has_dependency': False, 'step_ref': None, 'field': None, 'extract_fields': [], 'use_fields': []}
 
-    def _generate_combined_test_method(self, queries: List[str], sl_nos: List[int], rows_data: List[Dict[str, Any]]) -> str:
+    def _generate_combined_test_method(self, queries: List[str], sl_nos: List[int],
+                                        rows_data: List[Dict[str, Any]],
+                                        method_index: int = 1) -> Tuple[str, str]:
         """
         Generate a single test method that executes multiple API calls sequentially.
         Automatically detects dependencies between steps based on query text.
@@ -421,13 +425,15 @@ class CodeGenerator:
             queries: List of natural language queries
             sl_nos: List of serial numbers from Excel
             rows_data: List of row data from Excel
+            method_index: 1-based index for the test method number (e.g., 1 -> test_01_)
 
         Returns:
-            Generated test method code as string
+            Tuple of (generated test method code as string, full method name)
         """
         # Parse first query to get clean action (without arrow instructions)
         first_parsed = self._parse_query_with_instructions(queries[0]) if queries else {'action': 'combined_api_test'}
         test_name = self._sanitize_name(first_parsed['action'])
+        method_name = f"test_{method_index:02d}_{test_name}"
 
         # Build combined description using clean actions only
         combined_queries = '\n        '.join([
@@ -444,7 +450,7 @@ class CodeGenerator:
         This test executes {len(queries)} API operations sequentially:
         {combined_queries}
     """)
-    def test_01_{test_name}(self, api_client):
+    def {method_name}(self, api_client):
         """
         Combined test executing {len(queries)} API operations
         """
@@ -755,7 +761,7 @@ class CodeGenerator:
             code += f'''
 '''
 
-        return code
+        return code, method_name
 
     def _generate_test_method(self, query: str, sl_no: int, row_data: Dict[str, Any], index: int) -> str:
         """
@@ -1017,6 +1023,97 @@ class CodeGenerator:
 
         return code
 
+    def _get_existing_test_method_names(self, file_path: str) -> List[str]:
+        """
+        Get all existing test method names from a Python test file using AST.
+
+        Args:
+            file_path: Path to the Python test file
+
+        Returns:
+            List of test method names (functions starting with 'test_')
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            tree = ast.parse(content)
+            method_names = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.FunctionDef) and node.name.startswith('test_'):
+                    method_names.append(node.name)
+            return method_names
+        except Exception as e:
+            logger.warning(f"⚠️  Could not parse existing file for method names: {str(e)}")
+            return []
+
+    def _get_next_method_index(self, method_names: List[str]) -> int:
+        """
+        Determine the next test method index from existing method names.
+        Parses the 'test_XX_' prefix to find the highest index.
+
+        Args:
+            method_names: List of existing test method names
+
+        Returns:
+            Next 1-based method index (e.g., if max is 2, returns 3)
+        """
+        max_index = 0
+        pattern = re.compile(r'^test_(\d+)_')
+        for name in method_names:
+            match = pattern.match(name)
+            if match:
+                idx = int(match.group(1))
+                if idx > max_index:
+                    max_index = idx
+        return max_index + 1
+
+    def _insert_method_into_class(self, file_path: str, method_code: str) -> bool:
+        """
+        Insert a new test method into the existing TestGeneratedAPIs class in the file.
+        Uses AST to find the class's end line and inserts the method there.
+
+        Args:
+            file_path: Path to the Python test file
+            method_code: The method code to insert (indented at class-body level, 4 spaces)
+
+        Returns:
+            True if insertion succeeded, False otherwise
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            tree = ast.parse(content)
+            class_node = None
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef) and node.name == 'TestGeneratedAPIs':
+                    class_node = node
+                    break
+
+            if not class_node:
+                logger.warning("⚠️  TestGeneratedAPIs class not found in existing file; cannot append")
+                return False
+
+            lines = content.split('\n')
+            # end_lineno is 1-based; insert after the last line of the class body
+            insert_at = class_node.end_lineno  # 0-based index for lines list
+
+            # Ensure a blank line separator before the new method
+            method_lines = method_code.split('\n')
+            # Add a blank line before the new method for readability
+            new_lines = lines[:insert_at] + [''] + method_lines + lines[insert_at:]
+            new_content = '\n'.join(new_lines)
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+
+            logger.info(f"✅ Appended new test method into TestGeneratedAPIs class")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Error inserting method into class: {str(e)}")
+            return False
+
     def generate_test_file(self, sl_nos: List[int], queries: List[str],
                             folder_name: str, filename: str) -> Dict[str, Any]:
         """
@@ -1052,9 +1149,60 @@ class CodeGenerator:
                     f.write('"""\nGenerated test package\n"""\n')
                 logger.info(f"✅ Created __init__.py")
 
-            # Generate file header
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            file_content = f'''"""
+            # Check if the target file already exists (append mode)
+            file_path = os.path.join(folder_path, f"{filename}.py")
+            file_exists = os.path.exists(file_path)
+
+            # Get all row data
+            rows_data = []
+            generated_tests = []
+            for i, (query, sl_no) in enumerate(zip(queries, sl_nos)):
+                logger.info(f"  Loading data {i+1}/{len(queries)}: {query} (Sl_No: {sl_no})")
+
+                row_data = self._get_row_by_sl_no(sl_no)
+                if not row_data:
+                    logger.warning(f"⚠️  Skipping query '{query}' - Sl_No {sl_no} not found")
+                    continue
+
+                rows_data.append(row_data)
+                generated_tests.append({
+                    'query': query,
+                    'sl_no': sl_no,
+                    'method': row_data.get('Operation_Method'),
+                    'endpoint': row_data.get('Operation_Path')
+                })
+
+            # Generate single combined test method for all queries
+            logger.info(f"Generating combined test method for {len(queries)} queries")
+
+            generated_method_names = []
+
+            if file_exists:
+                # === APPEND MODE: add new method to existing TestGeneratedAPIs class ===
+                logger.info(f"📎 Existing file detected: {file_path} — appending new test method")
+
+                existing_methods = self._get_existing_test_method_names(file_path)
+                method_index = self._get_next_method_index(existing_methods)
+                logger.info(f"   Existing methods: {len(existing_methods)} | Next method index: {method_index:02d}")
+
+                if rows_data:
+                    test_code, method_name = self._generate_combined_test_method(
+                        queries, sl_nos, rows_data, method_index=method_index
+                    )
+                    inserted = self._insert_method_into_class(file_path, test_code)
+                    if not inserted:
+                        # Fallback: could not insert into class, treat as failure
+                        return {
+                            'success': False,
+                            'error': 'Could not append method to existing TestGeneratedAPIs class',
+                            'message': 'Failed to append method to existing test class'
+                        }
+                    generated_method_names.append(method_name)
+                    logger.info(f"   ✅ Appended method: {method_name}")
+            else:
+                # === CREATE MODE: generate fresh file with header, fixture, and class ===
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                file_content = f'''"""
 Generated Test File
 Generated on: {timestamp}
 Base URL: {self.base_url}
@@ -1085,37 +1233,15 @@ class TestGeneratedAPIs:
 
 '''
 
-            # Generate single combined test method for all queries
-            logger.info(f"Generating combined test method for {len(queries)} queries")
+                if rows_data:
+                    test_code, method_name = self._generate_combined_test_method(
+                        queries, sl_nos, rows_data, method_index=1
+                    )
+                    file_content += test_code + '\n'
+                    generated_method_names.append(method_name)
 
-            # Get all row data
-            rows_data = []
-            generated_tests = []
-            for i, (query, sl_no) in enumerate(zip(queries, sl_nos)):
-                logger.info(f"  Loading data {i+1}/{len(queries)}: {query} (Sl_No: {sl_no})")
-
-                row_data = self._get_row_by_sl_no(sl_no)
-                if not row_data:
-                    logger.warning(f"⚠️  Skipping query '{query}' - Sl_No {sl_no} not found")
-                    continue
-
-                rows_data.append(row_data)
-                generated_tests.append({
-                    'query': query,
-                    'sl_no': sl_no,
-                    'method': row_data.get('Operation_Method'),
-                    'endpoint': row_data.get('Operation_Path')
-                })
-
-            # Generate single combined test method
-            if rows_data:
-                test_code = self._generate_combined_test_method(queries, sl_nos, rows_data)
-                file_content += test_code + '\n'
-
-            # Write to file
-            file_path = os.path.join(folder_path, f"{filename}.py")
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(file_content)
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(file_content)
 
             logger.info(f"\n{'='*80}")
             logger.info(f"✅ TEST FILE GENERATED SUCCESSFULLY")
@@ -1130,6 +1256,7 @@ class TestGeneratedAPIs:
                 'folder_path': folder_path,
                 'tests_generated': len(generated_tests),
                 'tests': generated_tests,
+                'generated_method_names': generated_method_names,
                 'message': f'Successfully generated {len(generated_tests)} tests'
             }
 
