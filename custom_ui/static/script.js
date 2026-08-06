@@ -135,8 +135,8 @@ function createTestClassHTML(compNum, classNum) {
         <div class="test-class-section" id="testClass_${id}">
             <div class="test-class-header" onclick="toggleTestClassBody('${id}')">
                 <span class="test-class-toggle">▼</span>
-                <span class="test-class-title" id="testClassTitle_${id}">📘 TestClass_${String(classNum).padStart(2, '0')}</span>
-                <a href="javascript:void(0)" class="tc-class-rename-link" onclick="showRenameTestClassInput('${id}', event)" title="Rename Test Class">Rename Test Class</a>
+                <span class="test-class-title" id="testClassTitle_${id}">📘 TestFile_${String(classNum).padStart(2, '0')}</span>
+                <a href="javascript:void(0)" class="tc-class-rename-link" onclick="showRenameTestClassInput('${id}', event)" title="Rename Test File">Rename Test File</a>
                 <div class="tc-class-rename-editor" id="testClassRenameEditor_${id}" style="display: none;">
                     <input type="text" id="testClassRenameInput_${id}" placeholder="Enter new name" class="tc-class-rename-input">
                     <button class="tc-class-rename-save" onclick="saveTestClassName('${id}', event)" title="Save">✓</button>
@@ -162,7 +162,7 @@ function createSubSectionHTML(compNum, classNum, subNum) {
             <div class="sub-section-header" onclick="toggleSubSectionBody('${id}', ${subNum})">
                 <span class="sub-section-toggle">▼</span>
                 <span class="sub-section-title" id="subSectionTitle_${subId}">📝 TestMethod_${String(subNum).padStart(2, '0')}</span>
-                <a href="javascript:void(0)" class="sub-section-rename-link" onclick="showRenameSubSectionInput('${id}', ${subNum}, event)" title="Rename Sub Section">Rename Sub Section</a>
+                <a href="javascript:void(0)" class="sub-section-rename-link sub-section-rename-disabled" id="subSectionRenameLink_${subId}" onclick="showRenameSubSectionInput('${id}', ${subNum}, event)" title="Generate test code first to enable">Append Method Name</a>
                 <div class="sub-section-rename-editor" id="subSectionRenameEditor_${subId}" style="display: none;">
                     <input type="text" id="subSectionRenameInput_${subId}" placeholder="Enter new name" class="sub-section-rename-input">
                     <button class="sub-section-rename-save" onclick="saveSubSectionName('${id}', ${subNum}, event)" title="Save">✓</button>
@@ -404,20 +404,25 @@ function setSubSectionBodyDisabled(id, subNum, disabled) {
 function showRenameSubSectionInput(id, subNum, event) {
     if (event) event.stopPropagation();
     const subId = `${id}_${subNum}`;
+    const renameLink = document.getElementById(`subSectionRenameLink_${subId}`);
+    if (renameLink && renameLink.classList.contains('sub-section-rename-disabled')) return;
     const titleSpan = document.getElementById(`subSectionTitle_${subId}`);
     const editor = document.getElementById(`subSectionRenameEditor_${subId}`);
     const input = document.getElementById(`subSectionRenameInput_${subId}`);
     if (!titleSpan || !editor || !input) return;
 
-    // Strip emoji prefix for the default value
+    // Extract the current method name to show in placeholder
     const currentText = titleSpan.textContent;
-    const currentName = currentText.replace(/^[^\p{L}\p{N}]+\s*/u, '');
-    input.value = currentName;
+    const methodNameMatch = currentText.match(/:\s*(.+)$/);
+    const currentMethodName = methodNameMatch ? methodNameMatch[1].trim() : '';
+    
+    // Clear input and set placeholder to show current method name
+    input.value = '';
+    input.placeholder = `Current: ${currentMethodName}`;
 
     titleSpan.style.display = 'none';
     editor.style.display = 'inline-flex';
     input.focus();
-    input.select();
 
     // Disable the body elements during editing
     setSubSectionBodyDisabled(id, subNum, true);
@@ -429,19 +434,78 @@ function saveSubSectionName(id, subNum, event) {
     const titleSpan = document.getElementById(`subSectionTitle_${subId}`);
     const editor = document.getElementById(`subSectionRenameEditor_${subId}`);
     const input = document.getElementById(`subSectionRenameInput_${subId}`);
-    if (!titleSpan || !editor || !input) return;
-
-    const newName = input.value.trim();
-    if (!newName) {
-        alert('Sub Section name cannot be empty');
+    if (!titleSpan || !editor || !input) {
+        console.error('Missing elements:', { titleSpan, editor, input });
         return;
     }
-    titleSpan.textContent = `📝 ${newName}`;
-    titleSpan.style.display = '';
-    editor.style.display = 'none';
 
-    // Re-enable the body elements
-    setSubSectionBodyDisabled(id, subNum, false);
+    const appendText = input.value.trim();
+    console.log('Append text:', appendText);
+    if (!appendText) {
+        alert('Append text cannot be empty');
+        return;
+    }
+
+    // Extract the current method name from the title (format: "📝 TestMethod_01 : method_name")
+    const currentTitle = titleSpan.textContent;
+    console.log('Current title:', currentTitle);
+    const methodNameMatch = currentTitle.match(/:\s*(.+)$/);
+    console.log('Method name match:', methodNameMatch);
+    if (!methodNameMatch) {
+        alert('No method name found. Please generate test code first.');
+        return;
+    }
+
+    const oldMethodName = methodNameMatch[1].trim();
+    const [compNum, classNum] = id.split('_');
+    const folderName = `TestComponent_${String(compNum).padStart(2, '0')}`;
+    const fileName = `TestFile_${String(classNum).padStart(2, '0')}`;
+    console.log('Extracted data:', { oldMethodName, compNum, classNum, folderName, fileName });
+
+    // Show loading state
+    input.disabled = true;
+    const saveBtn = event.target;
+    const originalText = saveBtn.textContent;
+    saveBtn.textContent = '⏳';
+
+    // Send request to backend to rename the method
+    console.log('Sending rename request:', { folderName, fileName, oldMethodName, appendText });
+    fetch('/rename-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            folder_name: folderName,
+            file_name: fileName,
+            old_method_name: oldMethodName,
+            append_text: appendText
+        })
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.json();
+    })
+    .then(result => {
+        console.log('Rename result:', result);
+        if (result.success) {
+            // Update the title with the new method name
+            const emojiPrefix = currentTitle.match(/^[^\p{L}\p{N}]+\s*/u)?.[0] || '';
+            const labelPart = currentTitle.replace(/^[^\p{L}\p{N}]+\s*/u, '').split(/\s*:\s*/)[0].trim();
+            titleSpan.textContent = `${emojiPrefix}${labelPart} : ${result.new_method_name}`;
+            titleSpan.style.display = '';
+            editor.style.display = 'none';
+            setSubSectionBodyDisabled(id, subNum, false);
+        } else {
+            alert(`Failed to rename method: ${result.message}`);
+            input.disabled = false;
+            saveBtn.textContent = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error renaming method:', error);
+        alert(`Error renaming method: ${error.message || 'Please try again.'}`);
+        input.disabled = false;
+        saveBtn.textContent = originalText;
+    });
 }
 
 function cancelRenameSubSection(id, subNum, event) {
@@ -1002,9 +1066,8 @@ async function runGenerator(compNum, classNum, subNum) {
     const statusIcon = document.getElementById(`generatorStatusIcon_${subId}`);
     const statusText = document.getElementById(`generatorStatusText_${subId}`);
 
-    // Derive file name from the Test Class title (strip emoji prefix)
-    const titleSpan = document.getElementById(`testClassTitle_${id}`);
-    const fileName = titleSpan ? titleSpan.textContent.replace(/^[^\p{L}\p{N}]+\s*/u, '').trim() : `TestClass_${String(cls).padStart(2, '0')}`;
+    // Derive file name from the class number (actual file on disk is TestFile_XX.py)
+    const fileName = `TestFile_${String(cls).padStart(2, '0')}`;
 
     const excelPath = excelFileSelect.value;
     let baseUrl = baseUrlSelect.value;
@@ -1089,6 +1152,13 @@ async function runGenerator(compNum, classNum, subNum) {
                     const emojiPrefix = currentText.match(/^[^\p{L}\p{N}]+\s*/u)?.[0] || '';
                     const labelPart = currentText.replace(/^[^\p{L}\p{N}]+\s*/u, '').split(/\s*:\s*/)[0].trim();
                     subTitleSpan.textContent = `${emojiPrefix}${labelPart} : ${generatedMethodName}`;
+
+                    // Enable the "Append Text" link now that a method name exists
+                    const renameLink = document.getElementById(`subSectionRenameLink_${subId}`);
+                    if (renameLink) {
+                        renameLink.classList.remove('sub-section-rename-disabled');
+                        renameLink.title = 'Append Method Name';
+                    }
                 }
             }
 
@@ -1335,9 +1405,8 @@ async function executeGeneratedTest(compNum, classNum, subNum) {
     const folderNameInput = document.getElementById(`generatorFolderName_${num}`);
     const folderName = folderNameInput.value.trim();
 
-    // Derive file name from the Test Class title (strip emoji prefix)
-    const titleSpan = document.getElementById(`testClassTitle_${id}`);
-    const fileName = titleSpan ? titleSpan.textContent.replace(/^[^\p{L}\p{N}]+\s*/u, '').trim() : `TestClass_${String(cls).padStart(2, '0')}`;
+    // Derive file name from the class number (actual file on disk is TestFile_XX.py)
+    const fileName = `TestFile_${String(cls).padStart(2, '0')}`;
 
     // Extract the generated method name from the sub-section title
     // Format after generation: "📝 TestMethod_01 : test_01_..._ai"

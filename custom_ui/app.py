@@ -6,7 +6,10 @@ import sys
 import os
 import threading
 import time
+import logging
 from flask import Flask, render_template, request, jsonify
+
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from custom_ui.test_runner import run_swagger_scraper, run_openapi_json_parser
@@ -15,6 +18,7 @@ from executor_util.command_builder_util import build_pytest_command
 from executor_util.command_executor_util import CommandExecutor
 from generator_util.code_generator_util import CodeGenerator
 from generator_util.code_validator_util import CodeValidator
+from generator_altUtl.method_rename_util import append_to_method_name, validate_method_name
 from nlp.semantic_search_util import SemanticSearchEngine
 from generator_aiUtil.test_method_reader_util import TestMethodReader
 from generator_aiUtil.ai_code_modifier_util import modify_generated_code_with_ai
@@ -527,6 +531,66 @@ def check_test_status(test_id):
 
     result = test_execution_results[test_id]
     return jsonify(result)
+
+
+@app.route('/rename-method', methods=['POST'])
+def rename_method():
+    """Rename a test method in the generated test file by appending text"""
+    try:
+        logger.info("=== Rename Method Route Called ===")
+        data = request.get_json()
+        folder_name = data.get('folder_name')
+        file_name = data.get('file_name')
+        old_method_name = data.get('old_method_name')
+        append_text = data.get('append_text')
+
+        logger.info(f"Received - folder: {folder_name}, file: {file_name}, old_method: {old_method_name}, append: {append_text}")
+
+        if not all([folder_name, file_name, old_method_name, append_text]):
+            return jsonify({
+                'success': False,
+                'message': 'Missing required parameters'
+            }), 400
+
+        # Validate the append text
+        new_method_name = f"{old_method_name}_{append_text}"
+        is_valid, error_msg = validate_method_name(new_method_name)
+        if not is_valid:
+            logger.error(f"Invalid method name: {error_msg}")
+            return jsonify({
+                'success': False,
+                'message': f'Invalid method name: {error_msg}'
+            }), 400
+
+        # Use the reusable utility to append to method name
+        result = append_to_method_name(
+            subfolder_name=folder_name,
+            file_name=file_name,
+            old_method_name=old_method_name,
+            append_text=append_text,
+            delimiter='_',
+            project_root=PROJECT_ROOT
+        )
+
+        # Return the result
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': result['message'],
+                'new_method_name': result['new_method_name']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': result['message']
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error renaming method: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
 
 
 @app.route('/show-allure-report', methods=['POST'])
