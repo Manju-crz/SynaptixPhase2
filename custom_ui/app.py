@@ -58,18 +58,33 @@ def run_test():
 
 @app.route('/run-json-parser', methods=['POST'])
 def run_json_parser():
-    """Execute the OpenAPI JSON parser with provided spec URL"""
-    data = request.get_json()
-    spec_url = data.get('url', '')
+    """Execute the OpenAPI JSON parser with provided spec URL or uploaded file content"""
+    data = request.get_json() or {}
+    request_type = data.get('type', 'url')
 
-    if not spec_url:
-        return jsonify({'success': False, 'message': 'Spec URL is required'}), 400
+    if request_type == 'file':
+        spec_content = data.get('content', '')
+        filename = data.get('filename', 'uploaded_openapi.json')
 
-    try:
-        result = run_openapi_json_parser(spec_url)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        if not spec_content:
+            return jsonify({'success': False, 'message': 'JSON file content is required'}), 400
+
+        try:
+            result = run_openapi_json_parser(spec_url=None, spec_content=spec_content, filename=filename)
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({'success': False, 'message': str(e)}), 500
+    else:
+        spec_url = data.get('url', '')
+
+        if not spec_url:
+            return jsonify({'success': False, 'message': 'Spec URL or uploaded JSON file is required'}), 400
+
+        try:
+            result = run_openapi_json_parser(spec_url=spec_url)
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/get-excel-files', methods=['GET'])

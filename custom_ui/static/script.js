@@ -933,17 +933,44 @@ async function runUiScraper() {
 
 async function runJsonParser() {
     const urlInput = document.getElementById('jsonUrlInput');
+    const fileInput = document.getElementById('jsonFileInput');
     const runBtn = document.getElementById('runJsonParserBtn');
     const statusSection = document.getElementById('statusSection');
     const resultsSection = document.getElementById('resultsSection');
     const statusIcon = document.getElementById('statusIcon');
     const statusText = document.getElementById('statusText');
 
-    const url = urlInput.value.trim();
+    const url = urlInput ? urlInput.value.trim() : '';
+    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
 
-    if (!url) {
-        alert('Please enter an OpenAPI spec URL');
+    if (!url && !file) {
+        alert('Please enter an OpenAPI spec URL or upload a JSON file');
         return;
+    }
+
+    let bodyData = {};
+    let requestType = 'url';
+
+    if (file) {
+        // Read the uploaded JSON file
+        const fileContent = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(file);
+        });
+
+        bodyData = {
+            type: 'file',
+            filename: file.name,
+            content: fileContent
+        };
+        requestType = 'file';
+    } else {
+        bodyData = {
+            type: 'url',
+            url: url
+        };
     }
 
     // Show loading state
@@ -953,7 +980,7 @@ async function runJsonParser() {
     statusSection.className = 'status-section';
     statusIcon.textContent = '⏳';
     statusIcon.className = 'spinning';
-    statusText.textContent = 'Parsing OpenAPI JSON... This should take ~1 second';
+    statusText.textContent = requestType === 'file' ? 'Parsing uploaded OpenAPI JSON...' : 'Parsing OpenAPI JSON... This should take ~1 second';
     resultsSection.style.display = 'none';
 
     try {
@@ -962,7 +989,7 @@ async function runJsonParser() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ url: url })
+            body: JSON.stringify(bodyData)
         });
 
         const result = await response.json();

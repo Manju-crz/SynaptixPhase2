@@ -9,6 +9,6 @@ admin.synaptix / admin123
 	hr.synaptix	hr@synaptix.com	Manager	HR	
 	it.manager	it@synaptix.com	Manager	IT	
 
-
+employee123
 
 

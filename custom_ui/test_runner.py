@@ -4,6 +4,8 @@ Test Runner - Executes Playwright tests from UI
 
 import sys
 import os
+import json
+import tempfile
 import logging
 from datetime import datetime
 
@@ -183,27 +185,51 @@ def run_swagger_scraper(url: str) -> dict:
         logs.append("Browser closed")
 
 
-def run_openapi_json_parser(spec_url: str) -> dict:
+def run_openapi_json_parser(spec_url: str = None, spec_content: str = None, filename: str = None) -> dict:
     """
-    Run the OpenAPI JSON parser with the provided spec URL.
+    Run the OpenAPI JSON parser with either a spec URL or raw JSON file content.
 
     Args:
         spec_url: The URL to the OpenAPI/Swagger JSON specification
+        spec_content: Raw JSON content of the OpenAPI/Swagger specification
+        filename: Optional filename for the uploaded spec (for logging)
 
     Returns:
         dict: Result with success status and message
     """
     logs = []
+    temp_file_path = None
 
     try:
         logs.append(f"Initializing OpenAPI parser...")
-        parser = OpenAPIParser(spec_url)
 
-        logs.append(f"Fetching OpenAPI spec from: {spec_url}")
+        # Determine the source for the parser
+        if spec_content:
+            # Save uploaded JSON content to a temporary file
+            temp_dir = tempfile.gettempdir()
+            display_name = filename or "uploaded_openapi.json"
+            temp_file_path = os.path.join(temp_dir, display_name)
+
+            logs.append(f"Saving uploaded spec content to temporary file: {temp_file_path}")
+            with open(temp_file_path, 'w', encoding='utf-8') as f:
+                f.write(spec_content)
+
+            parser = OpenAPIParser(temp_file_path, source_type='file')
+            logs.append(f"Loading OpenAPI spec from uploaded file: {display_name}")
+        elif spec_url:
+            parser = OpenAPIParser(spec_url)
+            logs.append(f"Fetching OpenAPI spec from: {spec_url}")
+        else:
+            return {
+                'success': False,
+                'message': 'Either spec_url or spec_content must be provided',
+                'logs': logs
+            }
+
         if not parser.fetch_spec():
             return {
                 'success': False,
-                'message': 'Failed to fetch OpenAPI specification',
+                'message': 'Failed to fetch/load OpenAPI specification',
                 'logs': logs
             }
 
@@ -268,3 +294,10 @@ def run_openapi_json_parser(spec_url: str) -> dict:
             'message': str(e),
             'logs': logs
         }
+    finally:
+        # Clean up temporary uploaded spec file
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except Exception:
+                pass

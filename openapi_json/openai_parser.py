@@ -20,49 +20,113 @@ logger = logging.getLogger(__name__)
 class OpenAPIParser:
     """Parser for OpenAPI/Swagger specifications"""
 
-    def __init__(self, spec_url: str):
+    def __init__(self, spec_source: str, source_type: str = None):
         """
-        Initialize parser with OpenAPI spec URL
+        Initialize parser with OpenAPI spec source
 
         Args:
-            spec_url: URL to the OpenAPI JSON/YAML specification
+            spec_source: URL or local file path to the OpenAPI JSON/YAML specification
+            source_type: Optional type hint - 'url' or 'file'. If not provided,
+                        the source is auto-detected based on the string format.
         """
-        self.spec_url = spec_url
+        self.spec_source = spec_source
+        self.source_type = source_type
         self.spec = None
         self.base_url = None
+        self.spec_url = None  # Kept for backward compatibility
 
-    def fetch_spec(self) -> bool:
+    def _is_url(self) -> bool:
         """
-        Fetch the OpenAPI specification from the URL
+        Determine if the spec source is a URL or a file path
+
+        Returns:
+            bool: True if source is a URL, False otherwise
+        """
+        if self.source_type:
+            return self.source_type.lower() == 'url'
+        return bool(self.spec_source and self.spec_source.startswith(('http://', 'https://')))
+
+    def _load_spec_from_file(self) -> bool:
+        """
+        Load the OpenAPI specification from a local JSON file
 
         Returns:
             bool: True if successful, False otherwise
         """
         try:
-            logger.info(f"Fetching OpenAPI spec from: {self.spec_url}")
-            response = requests.get(self.spec_url, timeout=30)
+            logger.info(f"Loading OpenAPI spec from file: {self.spec_source}")
+            with open(self.spec_source, 'r', encoding='utf-8') as f:
+                self.spec = json.load(f)
+            logger.info(f"✅ Successfully loaded OpenAPI spec from file")
+
+            # Extract base URL if available
+            self._extract_base_url()
+            return True
+
+        except FileNotFoundError as e:
+            logger.error(f"Spec file not found: {str(e)}")
+            return False
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON file: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to load spec file: {str(e)}")
+            return False
+
+    def _load_spec_from_url(self) -> bool:
+        """
+        Fetch the OpenAPI specification from a URL
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            logger.info(f"Fetching OpenAPI spec from URL: {self.spec_source}")
+            response = requests.get(self.spec_source, timeout=30)
             response.raise_for_status()
 
             self.spec = response.json()
-            logger.info(f"✅ Successfully fetched OpenAPI spec")
+            logger.info(f"✅ Successfully fetched OpenAPI spec from URL")
 
             # Extract base URL if available
-            if 'servers' in self.spec and self.spec['servers']:
-                self.base_url = self.spec['servers'][0].get('url', '')
-            elif 'host' in self.spec:
-                scheme = self.spec.get('schemes', ['https'])[0]
-                base_path = self.spec.get('basePath', '')
-                self.base_url = f"{scheme}://{self.spec['host']}{base_path}"
-
-            logger.info(f"Base URL: {self.base_url}")
+            self._extract_base_url()
             return True
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to fetch OpenAPI spec: {str(e)}")
+            logger.error(f"Failed to fetch OpenAPI spec from URL: {str(e)}")
             return False
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON: {str(e)}")
+            logger.error(f"Failed to parse JSON from URL: {str(e)}")
             return False
+
+    def _extract_base_url(self):
+        """
+        Extract base URL from the loaded OpenAPI spec
+        """
+        if not self.spec:
+            return
+
+        if 'servers' in self.spec and self.spec['servers']:
+            self.base_url = self.spec['servers'][0].get('url', '')
+        elif 'host' in self.spec:
+            scheme = self.spec.get('schemes', ['https'])[0]
+            base_path = self.spec.get('basePath', '')
+            self.base_url = f"{scheme}://{self.spec['host']}{base_path}"
+
+        logger.info(f"Base URL: {self.base_url}")
+
+    def fetch_spec(self) -> bool:
+        """
+        Fetch or load the OpenAPI specification based on the source type
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if self._is_url():
+            self.spec_url = self.spec_source
+            return self._load_spec_from_url()
+        else:
+            return self._load_spec_from_file()
 
     def get_info(self) -> Dict[str, Any]:
         """

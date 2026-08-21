@@ -16,6 +16,16 @@
         placeholder="https://petstore.swagger.io/v2/swagger.json"
         value="https://petstore.swagger.io/v2/swagger.json"
     >
+    
+    <div class="or-separator" style="margin: 10px 0; text-align: center; color: #888;">— OR —</div>
+    
+    <label for="jsonFileInput">Upload OpenAPI JSON File:</label>
+    <input
+        type="file"
+        id="jsonFileInput"
+        accept=".json"
+    >
+    
     <button id="runJsonParserBtn" onclick="runJsonParser()">
         ▶️ Run JSON Parser
     </button>

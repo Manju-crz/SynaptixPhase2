@@ -115,3 +115,6 @@ test26
 Find all pets by status available -> Validate all the responded pet records with availble status only
 
 
+Obtain the openid access token -> use client_id as synaptix-portal, username as admin.synaptix, grant_type as password and password as admin123, and also use realm as synaptix-portal -> Retrive the access token as bearerToken; Get the existing list groups -> Use the bove retrieved bearer token authorization -> Validate the group names exsitinh in the list and expected are - Employees, IT, Finance, HR, Management
+
+
