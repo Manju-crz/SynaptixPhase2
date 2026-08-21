@@ -109,8 +109,9 @@ TIPS
 Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response
 test25
 
-
 Create a new pet in pest store -> Use a unique pet name by generating a random string while creating new pet -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response while updating, and also use another unique random pet name generated while updating the pet name; Delete a pet -> Use the pet_id from previous response
 test26
+
+Find all pets by status available -> Validate all the responded pet records with availble status only
 
 

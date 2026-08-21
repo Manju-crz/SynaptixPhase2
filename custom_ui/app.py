@@ -19,6 +19,7 @@ from executor_util.command_executor_util import CommandExecutor
 from generator_util.code_generator_util import CodeGenerator
 from generator_util.code_validator_util import CodeValidator
 from generator_altUtl.method_rename_util import append_to_method_name, validate_method_name
+from generator_altUtl.file_rename_util import rename_file_in_folder
 from nlp.semantic_search_util import SemanticSearchEngine
 from generator_aiUtil.test_method_reader_util import TestMethodReader
 from generator_aiUtil.ai_code_modifier_util import modify_generated_code_with_ai
@@ -587,6 +588,58 @@ def rename_method():
 
     except Exception as e:
         logger.error(f"Error renaming method: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+
+
+@app.route('/rename-file', methods=['POST'])
+def rename_file():
+    """Rename a test file in the specified folder"""
+    try:
+        logger.info("=== Rename File Route Called ===")
+        data = request.get_json()
+        folder_name = data.get('folder_name')
+        existing_file_name = data.get('existing_file_name')
+        new_file_name = data.get('new_file_name')
+
+        logger.info(f"Received - folder: {folder_name}, existing_file: {existing_file_name}, new_file: {new_file_name}")
+
+        if not all([folder_name, existing_file_name, new_file_name]):
+            return jsonify({
+                'success': False,
+                'message': 'Missing required parameters (folder_name, existing_file_name, new_file_name)'
+            }), 400
+
+        # Use the reusable utility to rename the file
+        # The utility now handles .py extension automatically
+        result = rename_file_in_folder(
+            folder_name=folder_name,
+            existing_file_name=existing_file_name,
+            new_file_name=new_file_name,
+            project_root=PROJECT_ROOT,
+            search_recursive=True
+        )
+
+        # Return the result
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': result['message'],
+                'old_file_name': result['old_file_name'],
+                'new_file_name': result['new_file_name'],
+                'old_file_path': result['old_file_path'],
+                'new_file_path': result['new_file_path']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': result['message']
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error renaming file: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error: {str(e)}'

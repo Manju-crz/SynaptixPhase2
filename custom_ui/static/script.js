@@ -132,7 +132,7 @@ function createTestClassHTML(compNum, classNum) {
     const id = `${compNum}_${classNum}`;
     const closeBtn = `<button class="tc-class-close" onclick="removeTestClass(${compNum}, ${classNum}, event)" title="Remove Test Class">&times;</button>`;
     return `
-        <div class="test-class-section" id="testClass_${id}">
+        <div class="test-class-section" id="testClass_${id}" data-file-name="TestFile_${String(classNum).padStart(2, '0')}">
             <div class="test-class-header" onclick="toggleTestClassBody('${id}')">
                 <span class="test-class-toggle">▼</span>
                 <span class="test-class-title" id="testClassTitle_${id}">📘 TestFile_${String(classNum).padStart(2, '0')}</span>
@@ -346,7 +346,7 @@ function showRenameTestClassInput(id, event) {
     setTestClassBodyDisabled(id, true);
 }
 
-function saveTestClassName(id, event) {
+async function saveTestClassName(id, event) {
     if (event) event.stopPropagation();
     const titleSpan = document.getElementById(`testClassTitle_${id}`);
     const editor = document.getElementById(`testClassRenameEditor_${id}`);
@@ -358,12 +358,148 @@ function saveTestClassName(id, event) {
         alert('Test Class name cannot be empty');
         return;
     }
-    titleSpan.textContent = `📘 ${newName}`;
-    titleSpan.style.display = '';
-    editor.style.display = 'none';
 
-    // Re-enable the body elements
-    setTestClassBodyDisabled(id, false);
+    // Extract component number and class number from id (format: compNum_classNum)
+    const [compNum, classNum] = id.split('_').map(Number);
+    
+    // Get the folder name from the component's folder input
+    const folderNameInput = document.getElementById(`generatorFolderName_${compNum}`);
+    if (!folderNameInput) {
+        alert('Could not find folder name for this component');
+        return;
+    }
+    const folderName = folderNameInput.value.trim();
+    
+    if (!folderName) {
+        alert('Folder name is not set. Please generate test code first.');
+        return;
+    }
+
+    // Derive the current file name from the class number
+    const existingFileName = `TestFile_${String(classNum).padStart(2, '0')}`;
+    
+    // Show loading state
+    const originalText = input.value;
+    input.disabled = true;
+    input.value = 'Renaming...';
+
+    try {
+        // First, check if we should call the backend API or just update the UI
+        // If folder name is not set, file doesn't exist yet - just update UI
+        let shouldCallBackend = folderName && folderName.length > 0;
+        
+        if (shouldCallBackend) {
+            // Call the backend API to rename the physical file
+            const response = await fetch('/rename-file', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    folder_name: folderName,
+                    existing_file_name: existingFileName,
+                    new_file_name: newName
+                })
+            });
+
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Non-JSON response received:', text);
+                throw new Error('Server returned non-JSON response. Check if Flask server is running.');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Physical file renamed successfully
+                titleSpan.textContent = `📘 ${newName}`;
+                titleSpan.style.display = '';
+                editor.style.display = 'none';
+                
+                // Update the data-file-name attribute
+                const testClassSection = document.getElementById(`testClass_${id}`);
+                if (testClassSection) {
+                    const newFileNameWithoutExt = result.new_file_name.replace(/\.py$/, '');
+                    testClassSection.setAttribute('data-file-name', newFileNameWithoutExt);
+                    console.log(`Updated data-file-name to: ${newFileNameWithoutExt} (file renamed on disk)`);
+                }
+                
+                // Show success notification
+                if (typeof notification !== 'undefined') {
+                    notification.success(`File renamed successfully: ${result.old_file_name} → ${result.new_file_name}`);
+                } else {
+                    alert(`File renamed successfully: ${result.old_file_name} → ${result.new_file_name}`);
+                }
+            } else {
+                // Backend rename failed - check if it's because file doesn't exist
+                if (result.message && (result.message.includes('not found') || result.message.includes('does not exist'))) {
+                    // File doesn't exist yet - just update UI
+                    console.log('File not found on disk - updating UI only (file will be created with new name)');
+                    titleSpan.textContent = `📘 ${newName}`;
+                    titleSpan.style.display = '';
+                    editor.style.display = 'none';
+                    
+                    // Update the data-file-name attribute
+                    const testClassSection = document.getElementById(`testClass_${id}`);
+                    if (testClassSection) {
+                        testClassSection.setAttribute('data-file-name', newName);
+                        console.log(`Updated data-file-name to: ${newName} (UI only - file doesn't exist yet)`);
+                    }
+                    
+                    // Show info notification
+                    if (typeof notification !== 'undefined') {
+                        notification.info(`File name updated to '${newName}'. File will be created with this name when you generate code.`);
+                    } else {
+                        alert(`File name updated to '${newName}'. File will be created with this name when you generate code.`);
+                    }
+                } else {
+                    // Other error - show error and revert
+                    if (typeof notification !== 'undefined') {
+                        notification.error(`Failed to rename file: ${result.message}`);
+                    } else {
+                        alert(`Failed to rename file: ${result.message}`);
+                    }
+                    input.value = originalText;
+                }
+            }
+        } else {
+            // Folder name not set - file doesn't exist yet, just update UI
+            console.log('Folder name not set - updating UI only (file will be created with new name)');
+            titleSpan.textContent = `📘 ${newName}`;
+            titleSpan.style.display = '';
+            editor.style.display = 'none';
+            
+            // Update the data-file-name attribute
+            const testClassSection = document.getElementById(`testClass_${id}`);
+            if (testClassSection) {
+                testClassSection.setAttribute('data-file-name', newName);
+                console.log(`Updated data-file-name to: ${newName} (UI only - no folder set yet)`);
+            }
+            
+            // Show info notification
+            if (typeof notification !== 'undefined') {
+                notification.info(`File name set to '${newName}'. File will be created with this name when you generate code.`);
+            } else {
+                alert(`File name set to '${newName}'. File will be created with this name when you generate code.`);
+            }
+        }
+    } catch (error) {
+        console.error('Error renaming file:', error);
+        if (typeof notification !== 'undefined') {
+            notification.error(`Error renaming file: ${error.message}`);
+        } else {
+            alert(`Error renaming file: ${error.message}`);
+        }
+        input.value = originalText;
+    } finally {
+        // Re-enable input
+        input.disabled = false;
+        
+        // Re-enable the body elements
+        setTestClassBodyDisabled(id, false);
+    }
 }
 
 function cancelRenameTestClass(id, event) {
@@ -1066,8 +1202,10 @@ async function runGenerator(compNum, classNum, subNum) {
     const statusIcon = document.getElementById(`generatorStatusIcon_${subId}`);
     const statusText = document.getElementById(`generatorStatusText_${subId}`);
 
-    // Derive file name from the class number (actual file on disk is TestFile_XX.py)
-    const fileName = `TestFile_${String(cls).padStart(2, '0')}`;
+    // Get the actual file name from the test class section's data attribute
+    const testClassSection = document.getElementById(`testClass_${id}`);
+    const fileName = testClassSection ? testClassSection.getAttribute('data-file-name') : `TestFile_${String(cls).padStart(2, '0')}`;
+    console.log(`Generate Test - Using file name: ${fileName}`);
 
     const excelPath = excelFileSelect.value;
     let baseUrl = baseUrlSelect.value;
@@ -1401,12 +1539,14 @@ async function executeGeneratedTest(compNum, classNum, subNum) {
     const statusIcon = document.getElementById(`generatorStatusIcon_${subId}`);
     const statusText = document.getElementById(`generatorStatusText_${subId}`);
 
-    // Get folder name from UI; derive file name from Test Class title
+    // Get folder name from UI; get actual file name from data attribute
     const folderNameInput = document.getElementById(`generatorFolderName_${num}`);
     const folderName = folderNameInput.value.trim();
 
-    // Derive file name from the class number (actual file on disk is TestFile_XX.py)
-    const fileName = `TestFile_${String(cls).padStart(2, '0')}`;
+    // Get the actual file name from the test class section's data attribute
+    const testClassSection = document.getElementById(`testClass_${id}`);
+    const fileName = testClassSection ? testClassSection.getAttribute('data-file-name') : `TestFile_${String(cls).padStart(2, '0')}`;
+    console.log(`Execute Test - Using file name: ${fileName}`);
 
     // Extract the generated method name from the sub-section title
     // Format after generation: "📝 TestMethod_01 : test_01_..._ai"

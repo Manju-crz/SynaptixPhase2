@@ -1,0 +1,14 @@
+
+http://localhost:8080/admin
+admin / admin123
+
+synaptix-technologies 
+admin.synaptix / admin123
+	admin.synaptix	admin@synaptix.com	Administrator	Synaptix	
+	finance.manager	finance@synaptix.com	Manager	Finance	
+	hr.synaptix	hr@synaptix.com	Manager	HR	
+	it.manager	it@synaptix.com	Manager	IT	
+
+
+
+
