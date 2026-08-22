@@ -34,7 +34,8 @@ columns = [
     "query_parameters",
     "path_parameters",
     "form_data_parameters",
-    "example_value_json",
+    "request_content_type",
+    "request_body_json",
     "response_model_json"
 ]
 
@@ -126,7 +127,7 @@ def run_swagger_scraper(url: str) -> dict:
                     query_params = swagger_page.get_query_parameters(operation['body_element'])
                     path_params = swagger_page.get_path_parameters(operation['body_element'])
                     form_data_params = swagger_page.get_form_data_parameters(operation['body_element'])
-                    example_json = swagger_page.get_example_value_json(tag, operation['method'], operation['path'])
+                    example_json = swagger_page.get_request_body_json(tag, operation['method'], operation['path'])
                     response_model_json = swagger_page.get_response_model_json(tag, operation['method'], operation['path'])
 
                 row = [
@@ -264,7 +265,8 @@ def run_openapi_json_parser(spec_url: str = None, spec_content: str = None, file
                 op['query_parameters'],
                 op['path_parameters'],
                 op['form_data_parameters'],
-                op['example_value_json'],
+                op['request_content_type'],
+                op['request_body_json'],
                 op['response_model_json']
             ]
             excel_data.append(row)

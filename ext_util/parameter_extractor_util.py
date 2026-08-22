@@ -140,7 +140,7 @@ class ParameterExtractor:
             'query_parameters': self._parse_parameters(row_data.get('query_parameters')),
             'path_parameters': self._parse_parameters(row_data.get('path_parameters')),
             'form_data_parameters': self._parse_parameters(row_data.get('form_data_parameters')),
-            'example_value_json': self._parse_json_string(row_data.get('example_value_json')),
+            'request_body_json': self._parse_json_string(row_data.get('request_body_json')),
             'response_json': self._parse_json_string(row_data.get('response_model_json')),
             'response_code': row_data.get('response_code'),
             'tags': row_data.get('tags')
@@ -204,12 +204,12 @@ class ParameterExtractor:
         else:
             logger.info(f"\n📝 Form Data Parameters: None")
 
-        # Example Value JSON
-        if data['example_value_json']:
-            logger.info(f"\n🔸 Example Value JSON (Request Body):")
-            logger.info(json.dumps(data['example_value_json'], indent=4))
+        # Request Body JSON
+        if data['request_body_json']:
+            logger.info(f"\n🔸 Request Body JSON:")
+            logger.info(json.dumps(data['request_body_json'], indent=4))
         else:
-            logger.info(f"\n🔸 Example Value JSON: None")
+            logger.info(f"\n🔸 Request Body JSON: None")
 
         # Response JSON
         if data['response_json']:

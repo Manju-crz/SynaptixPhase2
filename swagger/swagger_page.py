@@ -634,7 +634,7 @@ class SwaggerPage:
             logger.error(f"Failed to get form data parameters: {str(e)}")
             return json.dumps(form_data_params) if form_data_params else ""
 
-    def get_example_value_json(self, component_name: str, method_type: str, operation_path: str) -> str:
+    def get_request_body_json(self, component_name: str, method_type: str, operation_path: str) -> str:
         """
         Extract the Example Value JSON content for a specific API operation.
 

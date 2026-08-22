@@ -210,11 +210,11 @@ class CodeGenerator:
 
     def _parse_json_payload(self, json_str: Optional[str]) -> Optional[Dict]:
         """
-        Parse JSON payload string from example_value_json column.
+        Parse JSON payload string from request_body_json column.
         Converts schema definitions to actual example values if needed.
 
         Args:
-            json_str: JSON string from Excel (example_value_json column)
+            json_str: JSON string from Excel (request_body_json column)
 
         Returns:
             Dictionary with actual example values or None
@@ -471,7 +471,8 @@ class CodeGenerator:
             query_params = self._parse_parameters(row_data.get('query_parameters'))
             path_params = self._parse_parameters(row_data.get('path_parameters'))
             form_data_params = self._parse_parameters(row_data.get('form_data_parameters'))
-            json_payload = self._parse_json_payload(row_data.get('example_value_json'))
+            json_payload = self._parse_json_payload(row_data.get('request_body_json'))
+            content_type = row_data.get('request_content_type', '')
 
             # Build endpoint with path params
             # Check if we can use response data from previous steps
@@ -589,6 +590,7 @@ class CodeGenerator:
 '''
 
             # Add payload if exists
+            # Check content type to determine if it's JSON or form-urlencoded
             if json_payload:
                 formatted_json = self._format_json_payload(json_payload)
                 code += f'''            step{i}_payload = {formatted_json}
@@ -619,12 +621,24 @@ class CodeGenerator:
                 if query_params:
                     code += f''',
                 params=step{i}_params'''
-                if json_payload:
-                    code += f''',
-                json_payload=step{i}_payload'''
-                elif form_data_params:
-                    code += f''',
+                
+                # Use data= for form-urlencoded, json_payload= for JSON
+                if content_type == 'application/x-www-form-urlencoded':
+                    if json_payload:
+                        code += f''',
+                data=step{i}_payload'''
+                    elif form_data_params:
+                        code += f''',
                 data=step{i}_form_data'''
+                else:
+                    # Default to json_payload for application/json or other types
+                    if json_payload:
+                        code += f''',
+                json_payload=step{i}_payload'''
+                    elif form_data_params:
+                        code += f''',
+                data=step{i}_form_data'''
+                
                 code += '''
             )
 '''
@@ -639,12 +653,24 @@ class CodeGenerator:
                 if query_params:
                     code += f''',
                 params=step{i}_params'''
-                if json_payload:
-                    code += f''',
-                json_payload=step{i}_payload'''
-                elif form_data_params:
-                    code += f''',
+                
+                # Use data= for form-urlencoded, json_payload= for JSON
+                if content_type == 'application/x-www-form-urlencoded':
+                    if json_payload:
+                        code += f''',
+                data=step{i}_payload'''
+                    elif form_data_params:
+                        code += f''',
                 data=step{i}_form_data'''
+                else:
+                    # Default to json_payload for application/json or other types
+                    if json_payload:
+                        code += f''',
+                json_payload=step{i}_payload'''
+                    elif form_data_params:
+                        code += f''',
+                data=step{i}_form_data'''
+                
                 code += '''
             )
 '''
@@ -785,7 +811,8 @@ class CodeGenerator:
         query_params = self._parse_parameters(row_data.get('query_parameters'))
         path_params = self._parse_parameters(row_data.get('path_parameters'))
         form_data_params = self._parse_parameters(row_data.get('form_data_parameters'))
-        json_payload = self._parse_json_payload(row_data.get('example_value_json'))
+        json_payload = self._parse_json_payload(row_data.get('request_body_json'))
+        content_type = row_data.get('request_content_type', '')
 
         # Build endpoint with path params (use placeholder values for now)
         endpoint = path
@@ -931,8 +958,15 @@ class CodeGenerator:
                 if query_params:
                     code += f''',
                 params=params'''
-                code += f''',
+                
+                # Use data= for form-urlencoded, json_payload= for JSON
+                if content_type == 'application/x-www-form-urlencoded':
+                    code += f''',
+                data=payload'''
+                else:
+                    code += f''',
                 json_payload=payload'''
+                
                 code += '''
             )
 '''
@@ -967,8 +1001,15 @@ class CodeGenerator:
                 if query_params:
                     code += f''',
                 params=params'''
-                code += f''',
+                
+                # Use data= for form-urlencoded, json_payload= for JSON
+                if content_type == 'application/x-www-form-urlencoded':
+                    code += f''',
+                data=payload'''
+                else:
+                    code += f''',
                 json_payload=payload'''
+                
                 code += '''
             )
 '''

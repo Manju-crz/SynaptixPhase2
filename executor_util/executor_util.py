@@ -291,7 +291,7 @@ class ApiExecutor:
         query_params = self._parse_parameters(row_data.get('query_parameters'))
         path_params = self._parse_parameters(row_data.get('path_parameters'))
         form_params = self._parse_parameters(row_data.get('form_data_parameters'))
-        json_payload = self._parse_json_payload(row_data.get('example_value_json'))
+        json_payload = self._parse_json_payload(row_data.get('request_body_json'))
 
         endpoint = self._build_endpoint(path, path_params)
 

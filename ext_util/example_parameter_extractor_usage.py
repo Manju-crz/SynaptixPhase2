@@ -69,9 +69,9 @@ def example_3_extract_without_printing():
         if data['query_parameters']:
             print(f"Query Parameters Count: {len(data['query_parameters'])}")
 
-        if data['example_value_json']:
+        if data['request_body_json']:
             print(f"Request Body Available: Yes")
-            print(f"Request Body Keys: {list(data['example_value_json'].keys())}")
+            print(f"Request Body Keys: {list(data['request_body_json'].keys())}")
     else:
         print(f"\n❌ failed: {data['error']}")
 
@@ -119,12 +119,12 @@ def example_5_compare_parameters():
     print(f"\nPOST Operation (SL_No {post_sl_no}):")
     print(f"  Path: {post_data['operation_path']}")
     print(f"  Summary: {post_data['operation_summary']}")
-    print(f"  Has Request Body: {'Yes' if post_data['example_value_json'] else 'No'}")
+    print(f"  Has Request Body: {'Yes' if post_data['request_body_json'] else 'No'}")
 
     print(f"\nPUT Operation (SL_No {put_sl_no}):")
     print(f"  Path: {put_data['operation_path']}")
     print(f"  Summary: {put_data['operation_summary']}")
-    print(f"  Has Request Body: {'Yes' if put_data['example_value_json'] else 'No'}")
+    print(f"  Has Request Body: {'Yes' if put_data['request_body_json'] else 'No'}")
 
 
 if __name__ == "__main__":

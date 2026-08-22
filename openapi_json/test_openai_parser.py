@@ -86,7 +86,7 @@ def test_openapi_parser(spec_url: str):
             "query_parameters",
             "path_parameters",
             "form_data_parameters",
-            "example_value_json",
+            "request_body_json",
             "response_model_json"
         ]
 
@@ -105,7 +105,7 @@ def test_openapi_parser(spec_url: str):
                 op['query_parameters'],
                 op['path_parameters'],
                 op['form_data_parameters'],
-                op['example_value_json'],
+                op['request_body_json'],
                 op['response_model_json']
             ]
             excel_data.append(row)

@@ -132,6 +132,11 @@ EXCEL DATA FOR EACH STEP:
             prompt += f"  Method: {data.get('operation_method', 'N/A')}\n"
             prompt += f"  Path: {data.get('operation_path', 'N/A')}\n"
             prompt += f"  Summary: {data.get('operation_summary', 'N/A')}\n"
+            
+            # Add content type information
+            content_type = data.get('request_content_type', '')
+            if content_type:
+                prompt += f"  Content-Type: {content_type}\n"
 
             if data.get('header_parameters'):
                 prompt += f"  Headers: {json.dumps(data['header_parameters'], indent=2)}\n"
@@ -139,8 +144,10 @@ EXCEL DATA FOR EACH STEP:
                 prompt += f"  Query Params: {json.dumps(data['query_parameters'], indent=2)}\n"
             if data.get('path_parameters'):
                 prompt += f"  Path Params: {json.dumps(data['path_parameters'], indent=2)}\n"
-            if data.get('example_value_json'):
-                prompt += f"  Request Body: {json.dumps(data['example_value_json'], indent=2)}\n"
+            if data.get('form_data_parameters'):
+                prompt += f"  Form Data Params: {json.dumps(data['form_data_parameters'], indent=2)}\n"
+            if data.get('request_body_json'):
+                prompt += f"  Request Body: {json.dumps(data['request_body_json'], indent=2)}\n"
             if data.get('response_json'):
                 prompt += f"  Response: {json.dumps(data['response_json'], indent=2)}\n"
 
@@ -164,6 +171,11 @@ REQUIREMENTS:
 7. Ensure the code is syntactically correct and follows pytest best practices
 8. Keep the same method signature and structure
 9. Add comments where modifications are made
+10. **CRITICAL**: For POST/PUT requests, check the Content-Type:
+    - If Content-Type is 'application/x-www-form-urlencoded', use `data=payload` parameter
+    - If Content-Type is 'application/json', use `json_payload=payload` parameter
+    - NEVER use `json=payload` (this parameter does not exist in RestApiClient)
+11. When Form Data Params are provided, create the payload dict from those parameters
 
 OUTPUT:
 Return ONLY the complete modified Python test method code, nothing else. Do not include explanations or markdown code blocks.

@@ -209,6 +209,66 @@ class OpenAPIParser:
             'form_data_parameters': json.dumps(result['formData']) if result['formData'] else ''
         }
 
+    def extract_request_content_type(self, request_body: Dict) -> str:
+        """
+        Extract the content type from request body.
+
+        Args:
+            request_body: Request body object from OpenAPI 3.0 spec
+
+        Returns:
+            str: Content type (e.g., 'application/json', 'application/x-www-form-urlencoded')
+        """
+        try:
+            if request_body:
+                content = request_body.get('content', {})
+                if content:
+                    # Return the first content type found
+                    content_types = list(content.keys())
+                    if content_types:
+                        return content_types[0]
+            return ""
+        except Exception as e:
+            logger.warning(f"Failed to extract content type: {str(e)}")
+            return ""
+
+    def extract_form_urlencoded_parameters(self, request_body: Dict) -> str:
+        """
+        Extract form-urlencoded parameters from request body.
+
+        Args:
+            request_body: Request body object from OpenAPI 3.0 spec
+
+        Returns:
+            str: JSON representation of form parameters
+        """
+        try:
+            if request_body:
+                content = request_body.get('content', {})
+                form_content = content.get('application/x-www-form-urlencoded', {})
+                
+                if form_content:
+                    schema = form_content.get('schema', {})
+                    properties = schema.get('properties', {})
+                    required = schema.get('required', [])
+                    
+                    form_params = []
+                    for param_name, param_schema in properties.items():
+                        param_type = param_schema.get('type', 'string')
+                        is_required = 'REQ' if param_name in required else 'NRQ'
+                        description = param_schema.get('description', '')
+                        
+                        # Format: name:#:REQ/NRQ:#:type:#:description
+                        param_str = f"{param_name}:#:{is_required}:#:{param_type}:#:{description}"
+                        form_params.append(param_str)
+                    
+                    return '\n'.join(form_params) if form_params else ''
+            
+            return ""
+        except Exception as e:
+            logger.warning(f"Failed to extract form-urlencoded parameters: {str(e)}")
+            return ""
+
     def extract_request_body_schema(self, request_body: Dict, parameters: List[Dict] = None) -> str:
         """
         Extract request body schema as JSON
@@ -446,7 +506,30 @@ class OpenAPIParser:
                 # Extract request body (for POST/PUT)
                 # OpenAPI 3.0 uses requestBody, Swagger 2.0 uses body parameter
                 request_body = operation.get('requestBody', {})
-                example_json = self.extract_request_body_schema(request_body, all_params)
+                
+                # Detect content type
+                # For OpenAPI 3.0: use requestBody.content
+                # For Swagger 2.0: use consumes field
+                content_type = self.extract_request_content_type(request_body)
+                if not content_type and 'consumes' in operation:
+                    # Swagger 2.0: get content type from consumes array
+                    consumes = operation.get('consumes', [])
+                    if consumes:
+                        content_type = consumes[0]
+                
+                # Handle different content types
+                example_json = ''
+                form_data_params = params['form_data_parameters']
+                
+                if content_type == 'application/x-www-form-urlencoded':
+                    # Extract form-urlencoded parameters from requestBody (OpenAPI 3.0)
+                    # For Swagger 2.0, formData params are already in params['form_data_parameters']
+                    if request_body:
+                        form_data_params = self.extract_form_urlencoded_parameters(request_body)
+                elif content_type in ['application/json', 'application/xml', '*/*']:
+                    # Extract JSON/XML body schema
+                    # This handles both OpenAPI 3.0 (requestBody) and Swagger 2.0 (body parameter)
+                    example_json = self.extract_request_body_schema(request_body, all_params)
 
                 # Extract response model
                 responses = operation.get('responses', {})
@@ -464,8 +547,9 @@ class OpenAPIParser:
                     'header_parameters': params['header_parameters'],
                     'query_parameters': params['query_parameters'],
                     'path_parameters': params['path_parameters'],
-                    'form_data_parameters': params['form_data_parameters'],
-                    'example_value_json': example_json,
+                    'form_data_parameters': form_data_params,
+                    'request_content_type': content_type,
+                    'request_body_json': example_json,
                     'response_model_json': response_model_json
                 }
 
