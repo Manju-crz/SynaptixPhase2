@@ -11,6 +11,8 @@ from typing import List, Dict, Optional, Any, Tuple
 from datetime import datetime
 from openpyxl import load_workbook
 
+from loader.prompt_manager import save_prompts
+
 logging.basicConfig(
     level=logging.INFO,
     format='\n%(asctime)s | %(levelname)s | %(message)s',
@@ -35,11 +37,31 @@ class CodeGenerator:
         self.excel_path = excel_path
         self.base_url = base_url
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.project_root = project_root
         self.rest_test_base = os.path.join(project_root, "rest_test")
 
         logger.info(f"🔧 Initializing Code Generator")
         logger.info(f"  Excel: {excel_path}")
         logger.info(f"  Base URL: {base_url}")
+
+    @staticmethod
+    def _derive_class_name(folder_name: str, filename: str) -> str:
+        """
+        Derive a valid Python class name from folder and file names.
+        Combines folder and file names and strips any non-alphanumeric characters.
+
+        Args:
+            folder_name: Component/folder name
+            filename: Test file name (without .py)
+
+        Returns:
+            A valid Python class identifier
+        """
+        raw = f"{folder_name}{filename}"
+        name = re.sub(r'[^A-Za-z0-9]', '', raw)
+        if not name or not name[0].isalpha():
+            name = f"Test{name}"
+        return name
 
     def _get_row_by_sl_no(self, sl_no: int) -> Optional[Dict[str, Any]]:
         """
@@ -1110,7 +1132,7 @@ class CodeGenerator:
 
     def _insert_method_into_class(self, file_path: str, method_code: str) -> bool:
         """
-        Insert a new test method into the existing TestGeneratedAPIs class in the file.
+        Insert a new test method into the first class found in the file.
         Uses AST to find the class's end line and inserts the method there.
 
         Args:
@@ -1126,13 +1148,13 @@ class CodeGenerator:
 
             tree = ast.parse(content)
             class_node = None
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef) and node.name == 'TestGeneratedAPIs':
+            for node in tree.body:
+                if isinstance(node, ast.ClassDef):
                     class_node = node
                     break
 
             if not class_node:
-                logger.warning("⚠️  TestGeneratedAPIs class not found in existing file; cannot append")
+                logger.warning("⚠️  Test class not found in existing file; cannot append")
                 return False
 
             lines = content.split('\n')
@@ -1148,7 +1170,7 @@ class CodeGenerator:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
 
-            logger.info(f"✅ Appended new test method into TestGeneratedAPIs class")
+            logger.info(f"✅ Appended new test method into {class_node.name} class")
             return True
 
         except Exception as e:
@@ -1156,7 +1178,8 @@ class CodeGenerator:
             return False
 
     def generate_test_file(self, sl_nos: List[int], queries: List[str],
-                            folder_name: str, filename: str) -> Dict[str, Any]:
+                            folder_name: str, filename: str,
+                            original_query: str = None) -> Dict[str, Any]:
         """
         Generate a complete pytest test file based on queries and Sl_Nos.
 
@@ -1218,8 +1241,12 @@ class CodeGenerator:
 
             generated_method_names = []
 
+            # Derive the class name from the folder and file names
+            class_name = self._derive_class_name(folder_name, filename)
+            logger.info(f"🏷️  Derived test class name: {class_name}")
+
             if file_exists:
-                # === APPEND MODE: add new method to existing TestGeneratedAPIs class ===
+                # === APPEND MODE: add new method to existing class ===
                 logger.info(f"📎 Existing file detected: {file_path} — appending new test method")
 
                 existing_methods = self._get_existing_test_method_names(file_path)
@@ -1267,7 +1294,7 @@ def api_client():
     client.close()
 
 @allure.suite('Generated API Tests')
-class TestGeneratedAPIs:
+class {class_name}:
     """
     Auto-generated test class based on natural language queries
     """
@@ -1291,10 +1318,16 @@ class TestGeneratedAPIs:
             logger.info(f"📄 Tests Generated: {len(generated_tests)}")
             logger.info(f"{'='*80}\n")
 
+            # Save the original prompts for each generated method
+            prompt_text = original_query if original_query else '; '.join(queries)
+            prompts = {name: prompt_text for name in generated_method_names}
+            save_prompts(self.project_root, folder_name, filename, class_name, prompts)
+
             return {
                 'success': True,
                 'file_path': file_path,
                 'folder_path': folder_path,
+                'class_name': class_name,
                 'tests_generated': len(generated_tests),
                 'tests': generated_tests,
                 'generated_method_names': generated_method_names,

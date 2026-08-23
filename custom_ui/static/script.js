@@ -128,19 +128,56 @@ let testClassCounters = {};
 // Per-test-class sub-section counters (keyed by `${compNum}_${classNum}`)
 let subSectionCounters = {};
 
+function deriveClassName(folderName, fileName) {
+    const raw = `${folderName || ''}${fileName || ''}`;
+    let name = raw.replace(/[^A-Za-z0-9]/g, '');
+    if (!name || !/^[A-Za-z]/.test(name)) {
+        name = `Test${name}`;
+    }
+    return name;
+}
+
+function updateComponentClassNames(num) {
+    const folderInput = document.getElementById(`generatorFolderName_${num}`);
+    const folderName = (folderInput ? folderInput.value.trim() : '') || `TestComponent_${String(num).padStart(2, '0')}`;
+    const container = document.getElementById(`testClassesContainer_${num}`);
+    if (!container) return;
+
+    const classSections = container.querySelectorAll('.test-class-section');
+    classSections.forEach(section => {
+        const id = section.id.replace('testClass_', '');
+        const fileName = section.getAttribute('data-file-name');
+        if (!fileName) return;
+        const className = deriveClassName(folderName, fileName);
+        section.setAttribute('data-class-name', className);
+        updateTestClassTitle(id);
+    });
+}
+
 function createTestClassHTML(compNum, classNum) {
     const id = `${compNum}_${classNum}`;
+    const fileName = `TestFile_${String(classNum).padStart(2, '0')}`;
+    const folderInput = document.getElementById(`generatorFolderName_${compNum}`);
+    const folderName = (folderInput ? folderInput.value.trim() : '') || `TestComponent_${String(compNum).padStart(2, '0')}`;
+    const defaultClassName = deriveClassName(folderName, fileName);
     const closeBtn = `<button class="tc-class-close" onclick="removeTestClass(${compNum}, ${classNum}, event)" title="Remove Test Class">&times;</button>`;
     return `
-        <div class="test-class-section" id="testClass_${id}" data-file-name="TestFile_${String(classNum).padStart(2, '0')}">
+        <div class="test-class-section" id="testClass_${id}" data-file-name="${fileName}" data-class-name="${defaultClassName}">
             <div class="test-class-header" onclick="toggleTestClassBody('${id}')">
                 <span class="test-class-toggle">▼</span>
-                <span class="test-class-title" id="testClassTitle_${id}">📘 TestFile_${String(classNum).padStart(2, '0')}</span>
+                <span class="test-class-title" id="testClassTitle_${id}">📘 ${fileName}::${defaultClassName}</span>
+                <a href="javascript:void(0)" class="tc-class-rename-link" onclick="showRenameTestClassNameInput('${id}', event)" title="Rename Test Class">Rename Class</a>
+                <a href="javascript:void(0)" class="tc-class-delete-link" onclick="deleteTestFile('${id}', event)" title="Delete Test File">Delete File</a>
                 <a href="javascript:void(0)" class="tc-class-rename-link" onclick="showRenameTestClassInput('${id}', event)" title="Rename Test File">Rename Test File</a>
                 <div class="tc-class-rename-editor" id="testClassRenameEditor_${id}" style="display: none;">
-                    <input type="text" id="testClassRenameInput_${id}" placeholder="Enter new name" class="tc-class-rename-input">
+                    <input type="text" id="testClassRenameInput_${id}" placeholder="Enter new file name" class="tc-class-rename-input">
                     <button class="tc-class-rename-save" onclick="saveTestClassName('${id}', event)" title="Save">✓</button>
                     <button class="tc-class-rename-cancel" onclick="cancelRenameTestClass('${id}', event)" title="Cancel">✕</button>
+                </div>
+                <div class="tc-class-rename-editor" id="testClassClassRenameEditor_${id}" style="display: none;">
+                    <input type="text" id="testClassClassRenameInput_${id}" placeholder="Enter new class name" class="tc-class-rename-input">
+                    <button class="tc-class-rename-save" onclick="saveTestClassClassName('${id}', event)" title="Save">✓</button>
+                    <button class="tc-class-rename-cancel" onclick="cancelRenameTestClassName('${id}', event)" title="Cancel">✕</button>
                 </div>
                 ${closeBtn}
             </div>
@@ -162,6 +199,7 @@ function createSubSectionHTML(compNum, classNum, subNum) {
             <div class="sub-section-header" onclick="toggleSubSectionBody('${id}', ${subNum})">
                 <span class="sub-section-toggle">▼</span>
                 <span class="sub-section-title" id="subSectionTitle_${subId}">📝 TestMethod_${String(subNum).padStart(2, '0')}</span>
+                <a href="javascript:void(0)" class="sub-section-delete-link sub-section-delete-disabled" id="subSectionDeleteLink_${subId}" onclick="deleteTestMethod('${id}', ${subNum}, event)" title="Generate test code first to enable">Delete Method</a>
                 <a href="javascript:void(0)" class="sub-section-rename-link sub-section-rename-disabled" id="subSectionRenameLink_${subId}" onclick="showRenameSubSectionInput('${id}', ${subNum}, event)" title="Generate test code first to enable">Append Method Name</a>
                 <div class="sub-section-rename-editor" id="subSectionRenameEditor_${subId}" style="display: none;">
                     <input type="text" id="subSectionRenameInput_${subId}" placeholder="Enter new name" class="sub-section-rename-input">
@@ -177,6 +215,7 @@ function createSubSectionHTML(compNum, classNum, subNum) {
                     placeholder="Example: Create a new pet in the pet store&#10;Multiple queries: Create a new pet; Update pet information; Delete a pet&#10;&#10;Note: Each query will generate a separate test method"
                     rows="4"
                     class="textarea-input"
+                    onchange="updatePromptSidecar(${compNum}, ${classNum}, ${subNum})"
                 ></textarea>
 
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
@@ -325,6 +364,15 @@ function setTestClassBodyDisabled(id, disabled) {
     });
 }
 
+function updateTestClassTitle(id) {
+    const titleSpan = document.getElementById(`testClassTitle_${id}`);
+    const section = document.getElementById(`testClass_${id}`);
+    if (!titleSpan || !section) return;
+    const fileName = section.getAttribute('data-file-name') || `TestFile_${String(id.split('_')[1]).padStart(2, '0')}`;
+    const className = section.getAttribute('data-class-name') || 'TestGeneratedAPIs';
+    titleSpan.textContent = `📘 ${fileName}::${className}`;
+}
+
 function showRenameTestClassInput(id, event) {
     if (event) event.stopPropagation();
     const titleSpan = document.getElementById(`testClassTitle_${id}`);
@@ -333,14 +381,19 @@ function showRenameTestClassInput(id, event) {
     if (!titleSpan || !editor || !input) return;
 
     // Strip emoji prefix for the default value
-    const currentText = titleSpan.textContent;
-    const currentName = currentText.replace(/^[^\p{L}\p{N}]+\s*/u, '');
+    const section = document.getElementById(`testClass_${id}`);
+    if (!section) return;
+    const currentName = section.getAttribute('data-file-name') || '';
     input.value = currentName;
 
     titleSpan.style.display = 'none';
     editor.style.display = 'inline-flex';
     input.focus();
     input.select();
+
+    // Hide class rename editor if open
+    const classEditor = document.getElementById(`testClassClassRenameEditor_${id}`);
+    if (classEditor) classEditor.style.display = 'none';
 
     // Disable the body elements during editing
     setTestClassBodyDisabled(id, true);
@@ -361,7 +414,10 @@ async function saveTestClassName(id, event) {
 
     // Extract component number and class number from id (format: compNum_classNum)
     const [compNum, classNum] = id.split('_').map(Number);
-    
+
+    const testClassSection = document.getElementById(`testClass_${id}`);
+    const existingFileName = (testClassSection ? testClassSection.getAttribute('data-file-name') : null) || `TestFile_${String(classNum).padStart(2, '0')}`;
+
     // Get the folder name from the component's folder input
     const folderNameInput = document.getElementById(`generatorFolderName_${compNum}`);
     if (!folderNameInput) {
@@ -369,14 +425,11 @@ async function saveTestClassName(id, event) {
         return;
     }
     const folderName = folderNameInput.value.trim();
-    
+
     if (!folderName) {
         alert('Folder name is not set. Please generate test code first.');
         return;
     }
-
-    // Derive the current file name from the class number
-    const existingFileName = `TestFile_${String(classNum).padStart(2, '0')}`;
     
     // Show loading state
     const originalText = input.value;
@@ -414,18 +467,18 @@ async function saveTestClassName(id, event) {
 
             if (result.success) {
                 // Physical file renamed successfully
-                titleSpan.textContent = `📘 ${newName}`;
                 titleSpan.style.display = '';
                 editor.style.display = 'none';
-                
-                // Update the data-file-name attribute
-                const testClassSection = document.getElementById(`testClass_${id}`);
+
                 if (testClassSection) {
                     const newFileNameWithoutExt = result.new_file_name.replace(/\.py$/, '');
                     testClassSection.setAttribute('data-file-name', newFileNameWithoutExt);
+                    // Keep the existing class name; only the file name changed on disk
                     console.log(`Updated data-file-name to: ${newFileNameWithoutExt} (file renamed on disk)`);
                 }
-                
+
+                updateTestClassTitle(id);
+
                 // Show success notification
                 if (typeof notification !== 'undefined') {
                     notification.success(`File renamed successfully: ${result.old_file_name} → ${result.new_file_name}`);
@@ -437,16 +490,17 @@ async function saveTestClassName(id, event) {
                 if (result.message && (result.message.includes('not found') || result.message.includes('does not exist'))) {
                     // File doesn't exist yet - just update UI
                     console.log('File not found on disk - updating UI only (file will be created with new name)');
-                    titleSpan.textContent = `📘 ${newName}`;
                     titleSpan.style.display = '';
                     editor.style.display = 'none';
-                    
-                    // Update the data-file-name attribute
-                    const testClassSection = document.getElementById(`testClass_${id}`);
+
                     if (testClassSection) {
                         testClassSection.setAttribute('data-file-name', newName);
+                        const newClassName = deriveClassName(folderName, newName);
+                        testClassSection.setAttribute('data-class-name', newClassName);
                         console.log(`Updated data-file-name to: ${newName} (UI only - file doesn't exist yet)`);
                     }
+
+                    updateTestClassTitle(id);
                     
                     // Show info notification
                     if (typeof notification !== 'undefined') {
@@ -467,16 +521,18 @@ async function saveTestClassName(id, event) {
         } else {
             // Folder name not set - file doesn't exist yet, just update UI
             console.log('Folder name not set - updating UI only (file will be created with new name)');
-            titleSpan.textContent = `📘 ${newName}`;
             titleSpan.style.display = '';
             editor.style.display = 'none';
-            
-            // Update the data-file-name attribute
-            const testClassSection = document.getElementById(`testClass_${id}`);
+
             if (testClassSection) {
                 testClassSection.setAttribute('data-file-name', newName);
+                const folderForClass = folderName || `TestComponent_${String(compNum).padStart(2, '0')}`;
+                const newClassName = deriveClassName(folderForClass, newName);
+                testClassSection.setAttribute('data-class-name', newClassName);
                 console.log(`Updated data-file-name to: ${newName} (UI only - no folder set yet)`);
             }
+
+            updateTestClassTitle(id);
             
             // Show info notification
             if (typeof notification !== 'undefined') {
@@ -512,6 +568,211 @@ function cancelRenameTestClass(id, event) {
 
     // Re-enable the body elements
     setTestClassBodyDisabled(id, false);
+}
+
+function showRenameTestClassNameInput(id, event) {
+    if (event) event.stopPropagation();
+    const titleSpan = document.getElementById(`testClassTitle_${id}`);
+    const editor = document.getElementById(`testClassClassRenameEditor_${id}`);
+    const input = document.getElementById(`testClassClassRenameInput_${id}`);
+    const section = document.getElementById(`testClass_${id}`);
+    if (!titleSpan || !editor || !input || !section) return;
+
+    const currentClassName = section.getAttribute('data-class-name') || 'TestGeneratedAPIs';
+    input.value = currentClassName;
+
+    titleSpan.style.display = 'none';
+    editor.style.display = 'inline-flex';
+    input.focus();
+    input.select();
+
+    // Hide file rename editor if open
+    const fileEditor = document.getElementById(`testClassRenameEditor_${id}`);
+    if (fileEditor) fileEditor.style.display = 'none';
+
+    // Disable the body elements during editing
+    setTestClassBodyDisabled(id, true);
+}
+
+async function saveTestClassClassName(id, event) {
+    if (event) event.stopPropagation();
+    const titleSpan = document.getElementById(`testClassTitle_${id}`);
+    const editor = document.getElementById(`testClassClassRenameEditor_${id}`);
+    const input = document.getElementById(`testClassClassRenameInput_${id}`);
+    const section = document.getElementById(`testClass_${id}`);
+    if (!titleSpan || !editor || !input || !section) return;
+
+    const newClassName = input.value.trim();
+    if (!newClassName) {
+        alert('Class name cannot be empty');
+        return;
+    }
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(newClassName)) {
+        alert('Class name must be a valid Python identifier');
+        return;
+    }
+
+    const [compNum, classNum] = id.split('_').map(Number);
+    const folderNameInput = document.getElementById(`generatorFolderName_${compNum}`);
+    if (!folderNameInput) {
+        alert('Could not find folder name for this component');
+        return;
+    }
+    const folderName = folderNameInput.value.trim();
+    const fileName = section.getAttribute('data-file-name') || `TestFile_${String(classNum).padStart(2, '0')}`;
+    const oldClassName = section.getAttribute('data-class-name') || 'TestGeneratedAPIs';
+
+    const originalText = input.value;
+    input.disabled = true;
+    input.value = 'Renaming...';
+
+    try {
+        const response = await fetch('/rename-class', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                folder_name: folderName,
+                file_name: fileName,
+                old_class_name: oldClassName,
+                new_class_name: newClassName
+            })
+        });
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response received:', text);
+            throw new Error('Server returned non-JSON response. Check if Flask server is running.');
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            section.setAttribute('data-class-name', newClassName);
+            updateTestClassTitle(id);
+            titleSpan.style.display = '';
+            editor.style.display = 'none';
+            if (typeof notification !== 'undefined') {
+                notification.success(`Class renamed successfully: ${oldClassName} → ${newClassName}`);
+            } else {
+                alert(`Class renamed successfully: ${oldClassName} → ${newClassName}`);
+            }
+        } else {
+            if (result.message && (result.message.includes('not found') || result.message.includes('does not exist'))) {
+                console.log('File not found on disk - updating UI only (class will be created with new name)');
+                section.setAttribute('data-class-name', newClassName);
+                updateTestClassTitle(id);
+                titleSpan.style.display = '';
+                editor.style.display = 'none';
+                if (typeof notification !== 'undefined') {
+                    notification.info(`Class name updated to '${newClassName}'. File doesn't exist yet.`);
+                } else {
+                    alert(`Class name updated to '${newClassName}'. File doesn't exist yet.`);
+                }
+            } else {
+                if (typeof notification !== 'undefined') {
+                    notification.error(`Failed to rename class: ${result.message}`);
+                } else {
+                    alert(`Failed to rename class: ${result.message}`);
+                }
+                input.value = originalText;
+            }
+        }
+    } catch (error) {
+        console.error('Error renaming class:', error);
+        if (typeof notification !== 'undefined') {
+            notification.error(`Error renaming class: ${error.message}`);
+        } else {
+            alert(`Error renaming class: ${error.message}`);
+        }
+        input.value = originalText;
+    } finally {
+        input.disabled = false;
+        setTestClassBodyDisabled(id, false);
+    }
+}
+
+function cancelRenameTestClassName(id, event) {
+    if (event) event.stopPropagation();
+    const titleSpan = document.getElementById(`testClassTitle_${id}`);
+    const editor = document.getElementById(`testClassClassRenameEditor_${id}`);
+    if (!titleSpan || !editor) return;
+    titleSpan.style.display = '';
+    editor.style.display = 'none';
+
+    // Re-enable the body elements
+    setTestClassBodyDisabled(id, false);
+}
+
+function deleteTestFile(id, event) {
+    if (event) event.stopPropagation();
+
+    const [compNum, classNum] = id.split('_').map(Number);
+
+    // Get the folder name from the component's folder input
+    const folderNameInput = document.getElementById(`generatorFolderName_${compNum}`);
+    if (!folderNameInput) {
+        alert('Could not find folder name for this component');
+        return;
+    }
+    const folderName = folderNameInput.value.trim();
+    if (!folderName) {
+        alert('Folder name is not set. No file to delete.');
+        return;
+    }
+
+    // Get the test class section and file name
+    const testClassSection = document.getElementById(`testClass_${id}`);
+    if (!testClassSection) {
+        alert('Could not find test class section');
+        return;
+    }
+
+    const fileName = testClassSection.getAttribute('data-file-name');
+    if (!fileName) {
+        alert('No file name found for this test class');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to delete file "${fileName}.py"?`)) {
+        return;
+    }
+
+    // Send request to backend to delete the file
+    fetch('/delete-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            folder_name: folderName,
+            file_name: fileName
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Remove the test class section from the UI
+            testClassSection.remove();
+            if (typeof notification !== 'undefined') {
+                notification.success(`File deleted successfully: ${fileName}.py`);
+            } else {
+                alert(`File deleted successfully: ${fileName}.py`);
+            }
+        } else {
+            if (typeof notification !== 'undefined') {
+                notification.error(`Failed to delete file: ${result.message}`);
+            } else {
+                alert(`Failed to delete file: ${result.message}`);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting file:', error);
+        if (typeof notification !== 'undefined') {
+            notification.error(`Error deleting file: ${error.message}`);
+        } else {
+            alert(`Error deleting file: ${error.message || 'Please try again.'}`);
+        }
+    });
 }
 
 // ===== Sub Section rename helpers =====
@@ -594,8 +855,10 @@ function saveSubSectionName(id, subNum, event) {
 
     const oldMethodName = methodNameMatch[1].trim();
     const [compNum, classNum] = id.split('_');
-    const folderName = `TestComponent_${String(compNum).padStart(2, '0')}`;
-    const fileName = `TestFile_${String(classNum).padStart(2, '0')}`;
+    const folderInput = document.getElementById(`generatorFolderName_${compNum}`);
+    const testClassSection = document.getElementById(`testClass_${id}`);
+    const folderName = (folderInput ? folderInput.value.trim() : '') || `TestComponent_${String(compNum).padStart(2, '0')}`;
+    const fileName = (testClassSection ? testClassSection.getAttribute('data-file-name') : null) || `TestFile_${String(classNum).padStart(2, '0')}`;
     console.log('Extracted data:', { oldMethodName, compNum, classNum, folderName, fileName });
 
     // Show loading state
@@ -629,6 +892,13 @@ function saveSubSectionName(id, subNum, event) {
             titleSpan.textContent = `${emojiPrefix}${labelPart} : ${result.new_method_name}`;
             titleSpan.style.display = '';
             editor.style.display = 'none';
+
+            // Update the tracked method name
+            const subSection = document.getElementById(`subSection_${subId}`);
+            if (subSection) {
+                subSection.setAttribute('data-method-name', result.new_method_name);
+            }
+
             setSubSectionBodyDisabled(id, subNum, false);
         } else {
             alert(`Failed to rename method: ${result.message}`);
@@ -657,6 +927,78 @@ function cancelRenameSubSection(id, subNum, event) {
     setSubSectionBodyDisabled(id, subNum, false);
 }
 
+function deleteTestMethod(id, subNum, event) {
+    if (event) event.stopPropagation();
+    const subId = `${id}_${subNum}`;
+    const titleSpan = document.getElementById(`subSectionTitle_${subId}`);
+    const deleteLink = document.getElementById(`subSectionDeleteLink_${subId}`);
+    if (deleteLink && deleteLink.classList.contains('sub-section-delete-disabled')) return;
+
+    if (!titleSpan) return;
+
+    const currentTitle = titleSpan.textContent;
+    const methodNameMatch = currentTitle.match(/:\s*(.+)$/);
+    if (!methodNameMatch) {
+        alert('No method name found. Please generate test code first.');
+        return;
+    }
+
+    const methodName = methodNameMatch[1].trim();
+    const [compNum, classNum] = id.split('_');
+    const folderInput = document.getElementById(`generatorFolderName_${compNum}`);
+    const testClassSection = document.getElementById(`testClass_${id}`);
+    const folderName = (folderInput ? folderInput.value.trim() : '') || `TestComponent_${String(compNum).padStart(2, '0')}`;
+    const fileName = (testClassSection ? testClassSection.getAttribute('data-file-name') : null) || `TestFile_${String(classNum).padStart(2, '0')}`;
+
+    if (!confirm(`Are you sure you want to delete method "${methodName}"?`)) {
+        return;
+    }
+
+    // Send request to backend to delete the method
+    fetch('/delete-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            folder_name: folderName,
+            file_name: fileName,
+            method_name: methodName
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Revert title to the original placeholder (remove the method name)
+            titleSpan.textContent = currentTitle.split(' : ')[0];
+
+            // Remove the tracked method name
+            const subSection = document.getElementById(`subSection_${subId}`);
+            if (subSection) {
+                subSection.removeAttribute('data-method-name');
+            }
+
+            // Disable the delete and rename links since no method exists anymore
+            if (deleteLink) {
+                deleteLink.classList.add('sub-section-delete-disabled');
+                deleteLink.title = 'Generate test code first to enable';
+            }
+
+            const renameLink = document.getElementById(`subSectionRenameLink_${subId}`);
+            if (renameLink) {
+                renameLink.classList.add('sub-section-rename-disabled');
+                renameLink.title = 'Generate test code first to enable';
+            }
+
+            alert(`Method "${methodName}" deleted successfully`);
+        } else {
+            alert(`Failed to delete method: ${result.message}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting method:', error);
+        alert(`Error deleting method: ${error.message || 'Please try again.'}`);
+    });
+}
+
 function createTestComponentHTML(num) {
     return `
         <div class="input-section">
@@ -672,7 +1014,9 @@ function createTestComponentHTML(num) {
                         id="generatorFolderName_${num}"
                         placeholder="e.g., generated_tests, pet_tests, user_api_tests"
                         class="select-input"
+                        oninput="updateComponentClassNames(${num})"
                     >
+                    <a href="javascript:void(0)" class="component-delete-link" onclick="deleteTestComponent(${num}, event)" title="Delete this component folder and all its files">Delete Component/Folder</a>
                 </div>
             </div>
 
@@ -711,13 +1055,16 @@ function moveIconsGroupToLastTab() {
     lastTab.appendChild(iconsGroup);
 }
 
-function renameTestComponent(num) {
+async function renameTestComponent(num) {
     const labelSpan = document.getElementById(`tcTabLabel_${num}`);
-    if (!labelSpan) return;
+    const folderInput = document.getElementById(`generatorFolderName_${num}`);
+    const checkbox = document.getElementById(`useComponentAsFolder_${num}`);
+    if (!labelSpan || !folderInput) return;
 
     const currentText = labelSpan.textContent;
     // Strip leading emoji/icon for the prompt default
     const currentName = currentText.replace(/^[^\p{L}\p{N}]+\s*/u, '');
+    const oldFolderName = folderInput.value.trim() || currentName;
 
     const newName = prompt('Enter new name for this tab:', currentName);
     if (newName === null) return; // User cancelled
@@ -726,10 +1073,46 @@ function renameTestComponent(num) {
         alert('Tab name cannot be empty');
         return;
     }
+
+    // If "Use Component as folder" is checked and the folder name would change,
+    // call the backend to rename the physical rest_test folder (if it exists)
+    if (checkbox && checkbox.checked && oldFolderName !== trimmed) {
+        try {
+            const response = await fetch('/rename-component', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    old_folder_name: oldFolderName,
+                    new_folder_name: trimmed
+                })
+            });
+            const result = await response.json();
+
+            if (!result.success) {
+                if (typeof notification !== 'undefined') {
+                    notification.error(`Failed to rename folder: ${result.message}`);
+                } else {
+                    alert(`Failed to rename folder: ${result.message}`);
+                }
+                return;
+            }
+
+            console.log(`Component folder renamed: ${oldFolderName} -> ${trimmed}`);
+        } catch (error) {
+            console.error('Error renaming component folder:', error);
+            if (typeof notification !== 'undefined') {
+                notification.error(`Error renaming component folder: ${error.message || 'Please try again.'}`);
+            } else {
+                alert(`Error renaming component folder: ${error.message || 'Please try again.'}`);
+            }
+            return;
+        }
+    }
+
+    // Update tab label
     labelSpan.textContent = `🛠️ ${trimmed}`;
 
     // If "Use Component as folder" is checked, sync the folder name with the new tab name
-    const checkbox = document.getElementById(`useComponentAsFolder_${num}`);
     if (checkbox && checkbox.checked) {
         onUseComponentAsFolderChange(num);
     }
@@ -756,6 +1139,8 @@ function onUseComponentAsFolderChange(num) {
         folderInput.style.opacity = '1';
         folderInput.style.cursor = 'text';
     }
+
+    updateComponentClassNames(num);
 }
 
 function addTestComponent() {
@@ -854,12 +1239,228 @@ function removeTestComponent(num, event) {
     });
 }
 
+function deleteTestComponent(num, event) {
+    if (event) event.stopPropagation();
+
+    const folderNameInput = document.getElementById(`generatorFolderName_${num}`);
+    if (!folderNameInput) {
+        alert('Could not find folder name for this component');
+        return;
+    }
+    const folderName = folderNameInput.value.trim();
+    if (!folderName) {
+        alert('Folder name is not set. No component to delete.');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to delete component folder "${folderName}" and all its files?`)) {
+        return;
+    }
+
+    // Send request to backend to delete the component folder
+    fetch('/delete-component', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            folder_name: folderName
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Remove the component tab and panel from the UI
+            removeTestComponent(num, null);
+            if (typeof notification !== 'undefined') {
+                notification.success(`Component folder deleted successfully: ${folderName}`);
+            } else {
+                alert(`Component folder deleted successfully: ${folderName}`);
+            }
+        } else {
+            if (typeof notification !== 'undefined') {
+                notification.error(`Failed to delete component: ${result.message}`);
+            } else {
+                alert(`Failed to delete component: ${result.message}`);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting component:', error);
+        if (typeof notification !== 'undefined') {
+            notification.error(`Error deleting component: ${error.message}`);
+        } else {
+            alert(`Error deleting component: ${error.message || 'Please try again.'}`);
+        }
+    });
+}
+
 function initTestComponents() {
     // Clear the tabs container
     const tabsContainer = document.getElementById('testComponentTabs');
     tabsContainer.innerHTML = '';
     // Create the first component (icons group will be moved inside it)
     addTestComponent();
+}
+
+async function loadExistingTests() {
+    const btn = document.getElementById('loadExistingTestsBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Loading...';
+    }
+
+    try {
+        const response = await fetch('/load-existing-tests');
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error('Server returned non-JSON response. Check if Flask server is running.');
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to load existing tests');
+        }
+
+        // Reset the UI state
+        testComponentCounter = 0;
+        activeTestComponent = 1;
+        testClassCounters = {};
+        subSectionCounters = {};
+
+        const tabsContainer = document.getElementById('testComponentTabs');
+        const contentArea = document.getElementById('testComponentContentArea');
+        tabsContainer.innerHTML = '';
+        contentArea.innerHTML = '';
+
+        // Build each component
+        (result.components || []).forEach((component) => {
+            // Add a new component using the existing builder
+            addTestComponent();
+            const compNum = testComponentCounter;
+
+            // Set the tab label and sync folder name
+            const tabLabel = document.getElementById(`tcTabLabel_${compNum}`);
+            if (tabLabel) tabLabel.textContent = `🛠️ ${component.name}`;
+            onUseComponentAsFolderChange(compNum);
+
+            const files = component.files || [];
+            files.forEach((file, fIdx) => {
+                // The first file reuses the default class created by addTestComponent
+                if (fIdx > 0) {
+                    addTestClass(compNum);
+                }
+
+                const classNum = testClassCounters[compNum];
+                const id = `${compNum}_${classNum}`;
+                const section = document.getElementById(`testClass_${id}`);
+                if (section) {
+                    section.setAttribute('data-file-name', file.file_name);
+                    const className = file.class_name || deriveClassName(component.name, file.file_name);
+                    section.setAttribute('data-class-name', className);
+                    updateTestClassTitle(id);
+                }
+
+                const methods = file.methods || [];
+                const subContainer = document.getElementById(`subSectionsContainer_${id}`);
+                if (subContainer) {
+                    const existingSubSections = subContainer.querySelectorAll('.sub-section');
+                    for (let mIdx = existingSubSections.length; mIdx < methods.length; mIdx++) {
+                        addSubSection(compNum, classNum);
+                    }
+
+                    const subSections = subContainer.querySelectorAll('.sub-section');
+                    subSections.forEach((sub, mIdx) => {
+                        const subNum = mIdx + 1;
+                        const subId = `${id}_${subNum}`;
+                        const methodData = methods[mIdx];
+                        const titleSpan = document.getElementById(`subSectionTitle_${subId}`);
+                        const deleteLink = document.getElementById(`subSectionDeleteLink_${subId}`);
+                        const renameLink = document.getElementById(`subSectionRenameLink_${subId}`);
+                        const queryInput = document.getElementById(`generatorQueryInput_${subId}`);
+
+                        if (methodData && titleSpan) {
+                            const methodName = methodData.name || `TestMethod_${String(subNum).padStart(2, '0')}`;
+                            titleSpan.textContent = `📝 TestMethod_${String(subNum).padStart(2, '0')} : ${methodName}`;
+                            sub.setAttribute('data-method-name', methodName);
+
+                            if (queryInput && methodData.prompt) {
+                                queryInput.value = methodData.prompt;
+                            }
+                        }
+
+                        // Loaded methods are real, so enable delete/rename links
+                        if (deleteLink) {
+                            deleteLink.classList.remove('sub-section-delete-disabled');
+                            deleteLink.title = 'Delete Method';
+                        }
+                        if (renameLink) {
+                            renameLink.classList.remove('sub-section-rename-disabled');
+                            renameLink.title = 'Append Method Name';
+                        }
+                    });
+                }
+            });
+        });
+
+        // Ensure the icons group is on the last tab
+        moveIconsGroupToLastTab();
+
+        // Activate the first loaded component
+        if (testComponentCounter > 0) {
+            switchTestComponent(1);
+        }
+    } catch (error) {
+        console.error('Error loading existing tests:', error);
+        if (typeof notification !== 'undefined') {
+            notification.error(`Failed to load existing tests: ${error.message}`);
+        } else {
+            alert(`Failed to load existing tests: ${error.message}`);
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '📂 Load Existing Tests';
+        }
+    }
+}
+
+function updatePromptSidecar(compNum, classNum, subNum) {
+    const id = `${compNum}_${classNum}`;
+    const subId = `${id}_${subNum}`;
+    const subSection = document.getElementById(`subSection_${subId}`);
+    const testClassSection = document.getElementById(`testClass_${id}`);
+    const folderInput = document.getElementById(`generatorFolderName_${compNum}`);
+    const queryInput = document.getElementById(`generatorQueryInput_${subId}`);
+    if (!subSection || !testClassSection || !folderInput || !queryInput) return;
+
+    const methodName = subSection.getAttribute('data-method-name');
+    if (!methodName) return; // not a real generated method yet
+
+    const folderName = folderInput.value.trim();
+    const fileName = testClassSection.getAttribute('data-file-name');
+    const className = testClassSection.getAttribute('data-class-name');
+    const prompt = queryInput.value;
+
+    fetch('/update-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            folder_name: folderName,
+            file_name: fileName,
+            class_name: className,
+            method_name: methodName,
+            prompt: prompt
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (!result.success) {
+            console.warn('Failed to update prompt sidecar:', result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating prompt sidecar:', error);
+    });
 }
 
 async function runUiScraper() {
@@ -1318,13 +1919,33 @@ async function runGenerator(compNum, classNum, subNum) {
                     const labelPart = currentText.replace(/^[^\p{L}\p{N}]+\s*/u, '').split(/\s*:\s*/)[0].trim();
                     subTitleSpan.textContent = `${emojiPrefix}${labelPart} : ${generatedMethodName}`;
 
-                    // Enable the "Append Text" link now that a method name exists
+                    // Track the method name for prompt sidecar updates
+                    const subSection = document.getElementById(`subSection_${subId}`);
+                    if (subSection) {
+                        subSection.setAttribute('data-method-name', generatedMethodName);
+                    }
+
+                    // Enable the "Append Text" and "Delete Method" links now that a method name exists
                     const renameLink = document.getElementById(`subSectionRenameLink_${subId}`);
                     if (renameLink) {
                         renameLink.classList.remove('sub-section-rename-disabled');
                         renameLink.title = 'Append Method Name';
                     }
+
+                    const deleteLink = document.getElementById(`subSectionDeleteLink_${subId}`);
+                    if (deleteLink) {
+                        deleteLink.classList.remove('sub-section-delete-disabled');
+                        deleteLink.title = 'Delete Method';
+                    }
                 }
+            }
+
+            // Update test class title with generated class name
+            const testClassSection = document.getElementById(`testClass_${id}`);
+            if (testClassSection && result.class_name) {
+                testClassSection.setAttribute('data-class-name', result.class_name);
+                console.log(`Updated data-class-name to: ${result.class_name}`);
+                updateTestClassTitle(id);
             }
 
             // Fade out after 3 seconds
@@ -1359,6 +1980,10 @@ async function runGenerator(compNum, classNum, subNum) {
             resultsHTML += `<div class="result-item"><strong>📄 Generated File:</strong> ${result.file_path}</div>`;
             resultsHTML += `<div class="result-item"><strong>📁 Folder:</strong> ${result.folder_path}</div>`;
             resultsHTML += `<div class="result-item"><strong>🧪 Tests Generated:</strong> ${result.tests_generated}</div>`;
+
+            if (result.class_name) {
+                resultsHTML += `<div class="result-item"><strong>🏷️ Class Name:</strong> ${result.class_name}</div>`;
+            }
 
             // Display validation status
             if (result.validation) {

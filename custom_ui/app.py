@@ -19,7 +19,12 @@ from executor_util.command_executor_util import CommandExecutor
 from generator_util.code_generator_util import CodeGenerator
 from generator_util.code_validator_util import CodeValidator
 from generator_altUtl.method_rename_util import append_to_method_name, validate_method_name
+from generator_altUtl.method_remove_util import remove_method_from_file
+from generator_altUtl.class_rename_util import rename_class_in_file
 from generator_altUtl.file_rename_util import rename_file_in_folder
+from generator_altUtl.file_delete_util import delete_test_file, delete_component
+from loader.test_loader import load_existing_tests
+from loader import prompt_manager as prompt_manager
 from nlp.semantic_search_util import SemanticSearchEngine
 from generator_aiUtil.test_method_reader_util import TestMethodReader
 from generator_aiUtil.ai_code_modifier_util import modify_generated_code_with_ai
@@ -276,7 +281,8 @@ def run_generator():
             sl_nos=sl_nos,
             queries=queries,
             folder_name=folder_name,
-            filename=file_name
+            filename=file_name,
+            original_query=query
         )
 
         if result['success']:
@@ -348,6 +354,13 @@ def run_generator():
                             else:
                                 logs.append(f"   ✅ AI-modified method created: {ai_result['new_method_name']}")
                             logs.append(f"   Instructions applied: {ai_result['instructions_applied']}")
+
+                            # Sync prompt sidecar with the new AI method name
+                            if ai_result['new_method_name'] != original_method_name:
+                                prompt_manager.rename_method(
+                                    PROJECT_ROOT, folder_name, file_name,
+                                    original_method_name, ai_result['new_method_name']
+                                )
 
                             # Read the AI-modified method
                             reader_ai = TestMethodReader(result['file_path'])
@@ -590,6 +603,7 @@ def rename_method():
 
         # Return the result
         if result['success']:
+            prompt_manager.rename_method(PROJECT_ROOT, folder_name, file_name, old_method_name, result['new_method_name'])
             return jsonify({
                 'success': True,
                 'message': result['message'],
@@ -603,6 +617,46 @@ def rename_method():
 
     except Exception as e:
         logger.error(f"Error renaming method: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+
+
+@app.route('/delete-method', methods=['POST'])
+def delete_method():
+    """Delete a test method from the generated test file"""
+    try:
+        data = request.get_json()
+        folder_name = data.get('folder_name')
+        file_name = data.get('file_name')
+        method_name = data.get('method_name')
+
+        logger.info(f"Received - folder: {folder_name}, file: {file_name}, method: {method_name}")
+
+        if not all([folder_name, file_name, method_name]):
+            return jsonify({
+                'success': False,
+                'message': 'Missing required parameters'
+            }), 400
+
+        # Use the reusable utility to remove the method
+        result = remove_method_from_file(
+            subfolder_name=folder_name,
+            file_name=file_name,
+            method_name=method_name,
+            project_root=PROJECT_ROOT
+        )
+
+        # Return the result
+        if result['success']:
+            prompt_manager.delete_method(PROJECT_ROOT, folder_name, file_name, method_name)
+            return jsonify(result)
+        else:
+            return jsonify(result), 404
+
+    except Exception as e:
+        logger.error(f"Error deleting method: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error: {str(e)}'
@@ -627,18 +681,18 @@ def rename_file():
                 'message': 'Missing required parameters (folder_name, existing_file_name, new_file_name)'
             }), 400
 
-        # Use the reusable utility to rename the file
-        # The utility now handles .py extension automatically
+        # Use the reusable utility to rename the file directly under rest_test/
         result = rename_file_in_folder(
             folder_name=folder_name,
             existing_file_name=existing_file_name,
             new_file_name=new_file_name,
-            project_root=PROJECT_ROOT,
-            search_recursive=True
+            project_root=os.path.join(PROJECT_ROOT, 'rest_test'),
+            search_recursive=False
         )
 
         # Return the result
         if result['success']:
+            prompt_manager.rename_file(PROJECT_ROOT, folder_name, existing_file_name, new_file_name)
             return jsonify({
                 'success': True,
                 'message': result['message'],
@@ -655,6 +709,205 @@ def rename_file():
 
     except Exception as e:
         logger.error(f"Error renaming file: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+
+
+@app.route('/delete-file', methods=['POST'])
+def delete_file():
+    """Delete a test file in the specified folder"""
+    try:
+        logger.info("=== Delete File Route Called ===")
+        data = request.get_json()
+        folder_name = data.get('folder_name')
+        file_name = data.get('file_name')
+
+        logger.info(f"Received - folder: {folder_name}, file: {file_name}")
+
+        if not all([folder_name, file_name]):
+            return jsonify({
+                'success': False,
+                'message': 'Missing required parameters (folder_name, file_name)'
+            }), 400
+
+        # Use the reusable utility to delete the file
+        result = delete_test_file(
+            subfolder_name=folder_name,
+            file_name=file_name,
+            project_root=PROJECT_ROOT
+        )
+
+        # Return the result
+        if result['success']:
+            prompt_manager.delete_file(PROJECT_ROOT, folder_name, file_name)
+            return jsonify({
+                'success': True,
+                'message': result['message'],
+                'file_path': result['file_path']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': result['message']
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error deleting file: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+
+
+@app.route('/rename-class', methods=['POST'])
+def rename_class():
+    """Rename a class inside a generated test file"""
+    try:
+        logger.info("=== Rename Class Route Called ===")
+        data = request.get_json()
+        folder_name = data.get('folder_name')
+        file_name = data.get('file_name')
+        old_class_name = data.get('old_class_name')
+        new_class_name = data.get('new_class_name')
+
+        logger.info(f"Received - folder: {folder_name}, file: {file_name}, old_class: {old_class_name}, new_class: {new_class_name}")
+
+        if not all([folder_name, file_name, old_class_name, new_class_name]):
+            return jsonify({
+                'success': False,
+                'message': 'Missing required parameters (folder_name, file_name, old_class_name, new_class_name)'
+            }), 400
+
+        # Use the reusable utility to rename the class
+        result = rename_class_in_file(
+            subfolder_name=folder_name,
+            file_name=file_name,
+            old_class_name=old_class_name,
+            new_class_name=new_class_name,
+            project_root=PROJECT_ROOT
+        )
+
+        # Return the result
+        if result['success']:
+            prompt_manager.rename_class(PROJECT_ROOT, folder_name, file_name, new_class_name)
+            return jsonify({
+                'success': True,
+                'message': result['message'],
+                'file_path': result['file_path'],
+                'old_class_name': result['old_class_name'],
+                'new_class_name': result['new_class_name']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': result['message']
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error renaming class: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+
+
+@app.route('/rename-component', methods=['POST'])
+def rename_component_folder():
+    """Rename a component folder in rest_test"""
+    try:
+        logger.info("=== Rename Component Route Called ===")
+        data = request.get_json()
+        old_folder_name = data.get('old_folder_name')
+        new_folder_name = data.get('new_folder_name')
+
+        logger.info(f"Received - old: {old_folder_name}, new: {new_folder_name}")
+
+        if not old_folder_name or not new_folder_name:
+            return jsonify({
+                'success': False,
+                'message': 'Missing required parameters: old_folder_name and new_folder_name'
+            }), 400
+
+        old_path = os.path.join(PROJECT_ROOT, 'rest_test', old_folder_name)
+        new_path = os.path.join(PROJECT_ROOT, 'rest_test', new_folder_name)
+
+        if os.path.isdir(new_path):
+            return jsonify({
+                'success': False,
+                'message': f'Component folder "{new_folder_name}" already exists'
+            }), 409
+
+        if os.path.isdir(old_path):
+            try:
+                os.rename(old_path, new_path)
+                logger.info(f"Renamed component folder: {old_folder_name} -> {new_folder_name}")
+            except Exception as e:
+                logger.error(f"Failed to rename component folder: {e}")
+                return jsonify({
+                    'success': False,
+                    'message': f'Failed to rename component folder: {str(e)}'
+                }), 500
+        else:
+            logger.info(f"Component folder does not exist yet; updating name only")
+
+        # Sync the prompt index
+        prompt_manager.rename_component(PROJECT_ROOT, old_folder_name, new_folder_name)
+
+        return jsonify({
+            'success': True,
+            'message': f'Component folder renamed to "{new_folder_name}"',
+            'old_folder_name': old_folder_name,
+            'new_folder_name': new_folder_name
+        })
+
+    except Exception as e:
+        logger.error(f"Error renaming component: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
+
+
+@app.route('/delete-component', methods=['POST'])
+def delete_component_folder():
+    """Delete a complete component folder from rest_test"""
+    try:
+        logger.info("=== Delete Component Route Called ===")
+        data = request.get_json()
+        folder_name = data.get('folder_name')
+
+        logger.info(f"Received - folder: {folder_name}")
+
+        if not folder_name:
+            return jsonify({
+                'success': False,
+                'message': 'Missing required parameter: folder_name'
+            }), 400
+
+        # Use the reusable utility to delete the component folder
+        result = delete_component(
+            subfolder_name=folder_name,
+            project_root=PROJECT_ROOT
+        )
+
+        # Return the result
+        if result['success']:
+            prompt_manager.delete_component(PROJECT_ROOT, folder_name)
+            return jsonify({
+                'success': True,
+                'message': result['message'],
+                'folder_path': result['folder_path']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': result['message']
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Error deleting component: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error: {str(e)}'
@@ -758,6 +1011,53 @@ def serve_allure_report(filename):
 
     from flask import send_from_directory
     return send_from_directory(allure_report_path, filename)
+
+
+@app.route('/load-existing-tests', methods=['GET'])
+def load_existing_tests_route():
+    """Return the existing test structure from the rest_test folder"""
+    try:
+        result = load_existing_tests(project_root=PROJECT_ROOT)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in /load-existing-tests: {str(e)}")
+        return jsonify({
+            'success': False,
+            'components': [],
+            'message': f'Error: {str(e)}'
+        }), 500
+
+
+@app.route('/update-prompt', methods=['POST'])
+def update_prompt_route():
+    """Update the stored prompt for a method in the sidecar file"""
+    try:
+        data = request.get_json()
+        folder_name = data.get('folder_name')
+        file_name = data.get('file_name')
+        class_name = data.get('class_name')
+        method_name = data.get('method_name')
+        prompt = data.get('prompt', '')
+
+        if not all([folder_name, file_name, method_name, prompt is not None]):
+            return jsonify({
+                'success': False,
+                'message': 'Missing required parameters (folder_name, file_name, method_name, prompt)'
+            }), 400
+
+        prompt_manager.update_prompt(PROJECT_ROOT, folder_name, file_name, class_name, method_name, prompt)
+
+        return jsonify({
+            'success': True,
+            'message': 'Prompt updated successfully'
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating prompt: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }), 500
 
 
 if __name__ == '__main__':

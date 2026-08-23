@@ -328,6 +328,20 @@ main {
     white-space: nowrap;
 }
 
+.component-delete-link {
+    font-size: 0.8rem;
+    color: #ff6b6b;
+    text-decoration: underline;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s;
+    margin-left: 8px;
+}
+
+.component-delete-link:hover {
+    color: #ff4757;
+}
+
 .input-section label {
     font-size: 1rem;
     color: #ccc;
@@ -389,6 +403,20 @@ main {
 
 .tc-class-rename-link:hover {
     color: #00d4ff;
+}
+
+.tc-class-delete-link {
+    font-size: 0.8rem;
+    color: #ff6b6b;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-left: 8px;
+    white-space: nowrap;
+    transition: color 0.2s;
+}
+
+.tc-class-delete-link:hover {
+    color: #ff4757;
 }
 
 .tc-class-rename-editor {
@@ -546,6 +574,28 @@ main {
 }
 
 .sub-section-rename-link.sub-section-rename-disabled {
+    color: #555;
+    text-decoration: none;
+    cursor: not-allowed;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.sub-section-delete-link {
+    font-size: 0.78rem;
+    color: #ff6b6b;
+    text-decoration: underline;
+    cursor: pointer;
+    margin-left: 8px;
+    white-space: nowrap;
+    transition: color 0.2s;
+}
+
+.sub-section-delete-link:hover {
+    color: #ff4757;
+}
+
+.sub-section-delete-link.sub-section-delete-disabled {
     color: #555;
     text-decoration: none;
     cursor: not-allowed;
