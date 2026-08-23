@@ -12,6 +12,8 @@ from datetime import datetime
 from openpyxl import load_workbook
 
 from loader.prompt_manager import save_prompts
+from generator_altUtl.allure_suite_update_util import update_allure_suite
+from generator_altUtl.method_remove_util import remove_method_from_file
 
 logging.basicConfig(
     level=logging.INFO,
@@ -438,7 +440,8 @@ class CodeGenerator:
 
     def _generate_combined_test_method(self, queries: List[str], sl_nos: List[int],
                                         rows_data: List[Dict[str, Any]],
-                                        method_index: int = 1) -> Tuple[str, str]:
+                                        method_index: int = 1,
+                                        method_name: Optional[str] = None) -> Tuple[str, str]:
         """
         Generate a single test method that executes multiple API calls sequentially.
         Automatically detects dependencies between steps based on query text.
@@ -448,6 +451,7 @@ class CodeGenerator:
             sl_nos: List of serial numbers from Excel
             rows_data: List of row data from Excel
             method_index: 1-based index for the test method number (e.g., 1 -> test_01_)
+            method_name: Optional method name to use instead of deriving from method_index
 
         Returns:
             Tuple of (generated test method code as string, full method name)
@@ -455,7 +459,8 @@ class CodeGenerator:
         # Parse first query to get clean action (without arrow instructions)
         first_parsed = self._parse_query_with_instructions(queries[0]) if queries else {'action': 'combined_api_test'}
         test_name = self._sanitize_name(first_parsed['action'])
-        method_name = f"test_{method_index:02d}_{test_name}"
+        if method_name is None:
+            method_name = f"test_{method_index:02d}_{test_name}"
 
         # Build combined description using clean actions only
         combined_queries = '\n        '.join([
@@ -1130,14 +1135,17 @@ class CodeGenerator:
                     max_index = idx
         return max_index + 1
 
-    def _insert_method_into_class(self, file_path: str, method_code: str) -> bool:
+    def _insert_method_into_class(self, file_path: str, method_code: str,
+                                   insert_at: int = None) -> bool:
         """
         Insert a new test method into the first class found in the file.
         Uses AST to find the class's end line and inserts the method there.
+        If insert_at is provided, the method is inserted at that 0-based line index.
 
         Args:
             file_path: Path to the Python test file
             method_code: The method code to insert (indented at class-body level, 4 spaces)
+            insert_at: Optional 0-based line index where the method should be inserted
 
         Returns:
             True if insertion succeeded, False otherwise
@@ -1158,19 +1166,23 @@ class CodeGenerator:
                 return False
 
             lines = content.split('\n')
-            # end_lineno is 1-based; insert after the last line of the class body
-            insert_at = class_node.end_lineno  # 0-based index for lines list
 
-            # Ensure a blank line separator before the new method
+            if insert_at is None:
+                # end_lineno is 1-based; insert after the last line of the class body
+                insert_at = class_node.end_lineno  # 0-based index for lines list
+                leading_blank = ['']
+            else:
+                # Preserve position (no extra blank line for replacement)
+                leading_blank = []
+
             method_lines = method_code.split('\n')
-            # Add a blank line before the new method for readability
-            new_lines = lines[:insert_at] + [''] + method_lines + lines[insert_at:]
+            new_lines = lines[:insert_at] + leading_blank + method_lines + lines[insert_at:]
             new_content = '\n'.join(new_lines)
 
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(new_content)
 
-            logger.info(f"✅ Appended new test method into {class_node.name} class")
+            logger.info(f"✅ Inserted test method into {class_node.name} class at line {insert_at}")
             return True
 
         except Exception as e:
@@ -1179,7 +1191,8 @@ class CodeGenerator:
 
     def generate_test_file(self, sl_nos: List[int], queries: List[str],
                             folder_name: str, filename: str,
-                            original_query: str = None) -> Dict[str, Any]:
+                            original_query: str = None,
+                            replace_method_name: Optional[str] = None) -> Dict[str, Any]:
         """
         Generate a complete pytest test file based on queries and Sl_Nos.
 
@@ -1188,6 +1201,7 @@ class CodeGenerator:
             queries: List of natural language queries
             folder_name: Folder name to create inside rest_test/
             filename: Name of the test file (without .py extension)
+            replace_method_name: Optional name of an existing method to replace
 
         Returns:
             Dictionary with generation results
@@ -1246,27 +1260,50 @@ class CodeGenerator:
             logger.info(f"🏷️  Derived test class name: {class_name}")
 
             if file_exists:
-                # === APPEND MODE: add new method to existing class ===
-                logger.info(f"📎 Existing file detected: {file_path} — appending new test method")
-
+                # === APPEND OR REPLACE MODE ===
                 existing_methods = self._get_existing_test_method_names(file_path)
-                method_index = self._get_next_method_index(existing_methods)
-                logger.info(f"   Existing methods: {len(existing_methods)} | Next method index: {method_index:02d}")
 
-                if rows_data:
-                    test_code, method_name = self._generate_combined_test_method(
-                        queries, sl_nos, rows_data, method_index=method_index
-                    )
-                    inserted = self._insert_method_into_class(file_path, test_code)
-                    if not inserted:
-                        # Fallback: could not insert into class, treat as failure
-                        return {
-                            'success': False,
-                            'error': 'Could not append method to existing TestGeneratedAPIs class',
-                            'message': 'Failed to append method to existing test class'
-                        }
-                    generated_method_names.append(method_name)
-                    logger.info(f"   ✅ Appended method: {method_name}")
+                if replace_method_name and replace_method_name in existing_methods:
+                    # === REPLACE MODE: regenerate the same method name ===
+                    logger.info(f"🔄 Existing file detected: {file_path} — replacing method {replace_method_name}")
+
+                    remove_result = remove_method_from_file(folder_name, filename, replace_method_name, project_root=self.project_root)
+
+                    if rows_data:
+                        test_code, method_name = self._generate_combined_test_method(
+                            queries, sl_nos, rows_data, method_name=replace_method_name
+                        )
+                        insert_at = remove_result.get('insert_at')
+                        inserted = self._insert_method_into_class(file_path, test_code, insert_at=insert_at)
+                        if not inserted:
+                            return {
+                                'success': False,
+                                'error': 'Could not insert replaced method into existing class',
+                                'message': 'Failed to replace method in existing test class'
+                            }
+                        generated_method_names.append(method_name)
+                        logger.info(f"   ✅ Replaced method: {method_name}")
+                else:
+                    # === APPEND MODE: add new method to existing class ===
+                    logger.info(f"📎 Existing file detected: {file_path} — appending new test method")
+
+                    method_index = self._get_next_method_index(existing_methods)
+                    logger.info(f"   Existing methods: {len(existing_methods)} | Next method index: {method_index:02d}")
+
+                    if rows_data:
+                        test_code, method_name = self._generate_combined_test_method(
+                            queries, sl_nos, rows_data, method_index=method_index
+                        )
+                        inserted = self._insert_method_into_class(file_path, test_code)
+                        if not inserted:
+                            # Fallback: could not insert into class, treat as failure
+                            return {
+                                'success': False,
+                                'error': 'Could not append method to existing TestGeneratedAPIs class',
+                                'message': 'Failed to append method to existing test class'
+                            }
+                        generated_method_names.append(method_name)
+                        logger.info(f"   ✅ Appended method: {method_name}")
             else:
                 # === CREATE MODE: generate fresh file with header, fixture, and class ===
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1307,6 +1344,9 @@ class {class_name}:
                     )
                     file_content += test_code + '\n'
                     generated_method_names.append(method_name)
+
+                # Keep the allure suite name in sync with the generated class name
+                file_content, _ = update_allure_suite(file_content, class_name)
 
                 with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(file_content)

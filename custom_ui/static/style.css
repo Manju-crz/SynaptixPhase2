@@ -245,6 +245,30 @@ main {
     border-color: rgba(0, 212, 255, 0.4);
 }
 
+.excel-reload-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    font-size: 0.8rem;
+    color: #00d4ff;
+    cursor: pointer;
+    border-radius: 50%;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.25);
+    transition: all 0.3s;
+    user-select: none;
+    margin-right: 6px;
+}
+
+.excel-reload-icon:hover {
+    color: #00ff88;
+    background: rgba(0, 255, 136, 0.1);
+    border-color: rgba(0, 255, 136, 0.4);
+    transform: rotate(180deg);
+}
+
 /* Icons group container — lives inside the last tab */
 .tc-icons-group {
     display: inline-flex;
@@ -333,13 +357,27 @@ main {
     color: #ff6b6b;
     text-decoration: underline;
     cursor: pointer;
-    white-space: nowrap;
-    transition: color 0.2s;
+    transition: color 0.2s ease;
     margin-left: 8px;
 }
 
 .component-delete-link:hover {
     color: #ff4757;
+}
+
+.component-clear-link,
+.component-report-link {
+    font-size: 0.8rem;
+    color: #00d4ff;
+    text-decoration: underline;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    margin-left: 8px;
+}
+
+.component-clear-link:hover,
+.component-report-link:hover {
+    color: #00ff88;
 }
 
 .input-section label {
@@ -681,7 +719,8 @@ main {
 }
 
 /* Action buttons inside sub-section (Generate Test Code / Execute Test / Generate Report) */
-.sub-section .sub-section-action-btn {
+.sub-section .sub-section-action-btn,
+.tc-class-execute-btn {
     font-weight: 600;
     border: none;
     border-radius: 10px;
@@ -691,12 +730,26 @@ main {
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.sub-section .sub-section-action-btn:hover {
+.sub-section .sub-section-action-btn {
+    padding: 10px 15px;
+    font-size: 0.9em;
+}
+
+.test-class-header .tc-class-execute-btn {
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    margin-left: 8px;
+}
+
+.sub-section .sub-section-action-btn:hover,
+.tc-class-execute-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 30px rgba(179, 136, 255, 0.3);
 }
 
-.sub-section .sub-section-action-btn:disabled {
+.sub-section .sub-section-action-btn:disabled,
+.tc-class-execute-btn:disabled,
+.tc-class-execute-btn.tc-class-execute-disabled {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;

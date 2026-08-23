@@ -167,8 +167,9 @@ function createTestClassHTML(compNum, classNum) {
                 <span class="test-class-toggle">▼</span>
                 <span class="test-class-title" id="testClassTitle_${id}">📘 ${fileName}::${defaultClassName}</span>
                 <a href="javascript:void(0)" class="tc-class-rename-link" onclick="showRenameTestClassNameInput('${id}', event)" title="Rename Test Class">Rename Class</a>
-                <a href="javascript:void(0)" class="tc-class-delete-link" onclick="deleteTestFile('${id}', event)" title="Delete Test File">Delete File</a>
                 <a href="javascript:void(0)" class="tc-class-rename-link" onclick="showRenameTestClassInput('${id}', event)" title="Rename Test File">Rename Test File</a>
+                <a href="javascript:void(0)" class="tc-class-delete-link" onclick="deleteTestFile('${id}', event)" title="Delete Test File">Delete File</a>
+                <button class="tc-class-execute-btn" id="tcExecuteBtn_${id}" onclick="executeClassTests(${compNum}, ${classNum}, event)" title="Execute all tests in this class" type="button">▶ Execute Tests</button>
                 <div class="tc-class-rename-editor" id="testClassRenameEditor_${id}" style="display: none;">
                     <input type="text" id="testClassRenameInput_${id}" placeholder="Enter new file name" class="tc-class-rename-input">
                     <button class="tc-class-rename-save" onclick="saveTestClassName('${id}', event)" title="Save">✓</button>
@@ -185,6 +186,7 @@ function createTestClassHTML(compNum, classNum) {
                 <div class="sub-sections-container" id="subSectionsContainer_${id}">
                     <button class="sub-section-add-btn" onclick="addSubSection(${compNum}, ${classNum})" title="Add new Test Method">+ Add Test Method</button>
                 </div>
+                <div class="class-execution-logs" id="classExecutionLogs_${id}" style="display: none; margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 8px; border-left: 3px solid #00d4ff;"></div>
             </div>
         </div>
     `;
@@ -1002,22 +1004,13 @@ function deleteTestMethod(id, subNum, event) {
 function createTestComponentHTML(num) {
     return `
         <div class="input-section">
-            <div class="folder-row">
-                <label class="folder-checkbox-label">
-                    <input type="checkbox" id="useComponentAsFolder_${num}" checked onchange="onUseComponentAsFolderChange(${num})">
-                    Use Component as folder
-                </label>
-                <div class="folder-input-wrapper">
-                    <label for="generatorFolderName_${num}">📁 Folder Name (inside rest_test/):</label>
-                    <input
-                        type="text"
-                        id="generatorFolderName_${num}"
-                        placeholder="e.g., generated_tests, pet_tests, user_api_tests"
-                        class="select-input"
-                        oninput="updateComponentClassNames(${num})"
-                    >
-                    <a href="javascript:void(0)" class="component-delete-link" onclick="deleteTestComponent(${num}, event)" title="Delete this component folder and all its files">Delete Component/Folder</a>
-                </div>
+            <input type="hidden" id="generatorFolderName_${num}" value="">
+            <input type="checkbox" id="useComponentAsFolder_${num}" checked style="display: none;">
+
+            <div style="margin: 10px 0;">
+                <a href="javascript:void(0)" class="component-delete-link" onclick="deleteTestComponent(${num}, event)" title="Delete this component folder and all its files">Delete Component/Folder</a>
+                <a href="javascript:void(0)" class="component-clear-link" onclick="clearExecutionResults(${num}, event)" title="Clear allure-results and allure-report folders" style="margin-left: 12px;">Clear Execution Results</a>
+                <a href="javascript:void(0)" class="component-report-link" onclick="generateAllureReport(${num}, event)" title="Generate Allure report from existing results" style="margin-left: 12px;">Generate Reports</a>
             </div>
 
             <div class="test-classes-container" id="testClassesContainer_${num}">
@@ -1291,6 +1284,86 @@ function deleteTestComponent(num, event) {
             alert(`Error deleting component: ${error.message || 'Please try again.'}`);
         }
     });
+}
+
+async function clearExecutionResults(num, event) {
+    if (event) event.stopPropagation();
+
+    if (!confirm('Are you sure you want to clear allure results and reports?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/clear-execution-results', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            if (typeof notification !== 'undefined') {
+                notification.success(result.message);
+            } else {
+                alert(result.message);
+            }
+        } else {
+            if (typeof notification !== 'undefined') {
+                notification.error(`Failed to clear results: ${result.message}`);
+            } else {
+                alert(`Failed to clear results: ${result.message}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error clearing execution results:', error);
+        if (typeof notification !== 'undefined') {
+            notification.error(`Error clearing results: ${error.message}`);
+        } else {
+            alert(`Error clearing results: ${error.message || 'Please try again.'}`);
+        }
+    }
+}
+
+async function generateAllureReport(num, event) {
+    if (event) event.stopPropagation();
+
+    try {
+        const response = await fetch('/show-allure-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            if (typeof notification !== 'undefined') {
+                notification.success(result.message);
+            }
+
+            if (result.url) {
+                const newWindow = window.open(result.url, '_blank');
+                if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                    console.warn('Popup blocked!');
+                    if (typeof notification !== 'undefined') {
+                        notification.info(`Report generated: <a href="${result.url}" target="_blank">Open Report</a>`);
+                    } else {
+                        alert(`Report generated. Click to open: ${result.url}`);
+                    }
+                }
+            }
+        } else {
+            if (typeof notification !== 'undefined') {
+                notification.error(`Report generation failed: ${result.message}`);
+            } else {
+                alert(`Report generation failed: ${result.message}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error generating Allure report:', error);
+        if (typeof notification !== 'undefined') {
+            notification.error(`Error generating report: ${error.message}`);
+        } else {
+            alert(`Error generating report: ${error.message || 'Please try again.'}`);
+        }
+    }
 }
 
 function initTestComponents() {
@@ -1841,6 +1914,18 @@ async function runGenerator(compNum, classNum, subNum) {
     const query = queryInput.value.trim();
     const aiModel = getSelectedAiModel();
 
+    // Check if the method already exists and confirm replacement
+    const subSection = document.getElementById(`subSection_${subId}`);
+    const existingMethodName = subSection ? subSection.getAttribute('data-method-name') : null;
+    let replaceMethod = false;
+    if (existingMethodName) {
+        const confirmed = confirm(`Method code for "${existingMethodName}" already exists. Do you want to replace it?`);
+        if (!confirmed) {
+            return;
+        }
+        replaceMethod = true;
+    }
+
     // Validation
     if (!excelPath) {
         alert('Please select an Excel file');
@@ -1886,7 +1971,9 @@ async function runGenerator(compNum, classNum, subNum) {
                 folder_name: folderName,
                 file_name: fileName,
                 query: query,
-                ai_model: aiModel
+                ai_model: aiModel,
+                replace_method: replaceMethod,
+                method_name: existingMethodName || null
             })
         });
 
@@ -2381,6 +2468,129 @@ async function executeGeneratedTest(compNum, classNum, subNum) {
     } finally {
         executeBtn.disabled = false;
         executeBtn.textContent = '▶ Execute Test';
+    }
+}
+
+async function executeClassTests(compNum, classNum, event) {
+    if (event) event.stopPropagation();
+
+    const num = compNum || activeTestComponent || 1;
+    const cls = classNum || (testClassCounters[num] ? testClassCounters[num] : 1);
+    const id = `${num}_${cls}`;
+    const executeBtn = document.getElementById(`tcExecuteBtn_${id}`);
+    const testClassSection = document.getElementById(`testClass_${id}`);
+    const fileName = testClassSection ? testClassSection.getAttribute('data-file-name') : `TestFile_${String(cls).padStart(2, '0')}`;
+
+    const folderNameInput = document.getElementById(`generatorFolderName_${num}`);
+    const folderName = folderNameInput ? folderNameInput.value.trim() : '';
+    const logsContainer = document.getElementById(`classExecutionLogs_${id}`);
+    const testClassBody = document.getElementById(`testClassBody_${id}`);
+
+    if (!folderName) {
+        alert('Please enter a folder name');
+        return;
+    }
+
+    if (logsContainer) {
+        logsContainer.style.display = 'block';
+        logsContainer.innerHTML = '<div style="color: #00d4ff;">⏳ Starting class-level test execution...</div>';
+    }
+    if (testClassSection) {
+        testClassSection.classList.remove('collapsed');
+    }
+
+    if (executeBtn) {
+        executeBtn.textContent = '⏳ Executing...';
+        executeBtn.classList.add('tc-class-execute-disabled');
+    }
+
+    try {
+        const response = await fetch('/execute-class-tests', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                folder_name: folderName,
+                file_name: fileName
+            })
+        });
+
+        const startResult = await response.json();
+        if (!startResult.success || !startResult.test_id) {
+            throw new Error(startResult.message || 'Failed to start class test execution');
+        }
+
+        const testId = startResult.test_id;
+        const maxPolls = 240; // 4 minutes max for class-level
+        let pollCount = 0;
+        let result = null;
+
+        while (pollCount < maxPolls) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            pollCount++;
+
+            const statusResponse = await fetch(`/check-test-status/${testId}`);
+            const statusResult = await statusResponse.json();
+
+            if (statusResult.status === 'completed') {
+                result = statusResult;
+                break;
+            }
+        }
+
+        if (!result) {
+            throw new Error('Class test execution timed out');
+        }
+
+        if (logsContainer) {
+            let logHTML = '<div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px;">';
+
+            if (result.success) {
+                logHTML += '<h4 style="color: #00ff88; margin: 0 0 15px 0;">✅ Class Tests Executed Successfully</h4>';
+            } else {
+                logHTML += '<h4 style="color: #ff4757; margin: 0 0 15px 0;">❌ Class Tests Failed</h4>';
+            }
+
+            if (result.command) {
+                logHTML += `<div class="result-item" style="margin-bottom: 10px;"><strong>Command:</strong> <code style="color: #00ff88;">${result.command}</code></div>`;
+            }
+            if (result.exit_code !== undefined) {
+                logHTML += `<div class="result-item" style="margin-bottom: 10px;"><strong>Exit Code:</strong> <code style="color: #00ff88;">${result.exit_code}</code></div>`;
+            }
+            if (result.message) {
+                logHTML += `<div class="result-item" style="margin-bottom: 10px;"><strong>Message:</strong> ${result.message}</div>`;
+            }
+
+            let combinedOutput = '';
+            if (result.stderr && result.stderr.trim()) {
+                combinedOutput = result.stderr;
+            }
+            if (result.stdout && result.stdout.trim()) {
+                combinedOutput += (combinedOutput ? '\n\n' : '') + result.stdout;
+            }
+
+            if (combinedOutput) {
+                logHTML += '<h4 style="color: #00d4ff; margin-top: 20px; margin-bottom: 10px;">📋 Execution Logs:</h4>';
+                logHTML += '<pre style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; font-size: 0.9em; line-height: 1.5; color: #e0e0e0;">' + combinedOutput + '</pre>';
+            } else {
+                logHTML += '<p style="color: #a0a0a0; margin-top: 20px;">No output captured.</p>';
+            }
+
+            logHTML += '</div>';
+            logsContainer.innerHTML = logHTML;
+        }
+    } catch (error) {
+        if (logsContainer) {
+            logsContainer.innerHTML = '<div style="color: #ff4757;">❌ Failed to execute class tests: ' + error.message + '</div>';
+        } else {
+            alert('Failed to execute class tests: ' + error.message);
+        }
+    } finally {
+        if (executeBtn) {
+            executeBtn.textContent = '▶ Execute Tests';
+            executeBtn.classList.remove('tc-class-execute-disabled');
+        }
     }
 }
 

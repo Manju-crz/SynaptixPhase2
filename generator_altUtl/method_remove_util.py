@@ -28,6 +28,8 @@ def remove_method_from_file(subfolder_name, file_name, method_name, project_root
             - method_name (str): The removed method name
             - file_path (str): The path to the modified file
             - removed_lines (int): Number of lines removed (0 if not found)
+            - insert_at (int or None): 0-based line index where the removed method started
+              (useful for inserting a replacement at the same position)
 
     Example:
         >>> result = remove_method_from_file(
@@ -135,12 +137,16 @@ def remove_method_from_file(subfolder_name, file_name, method_name, project_root
         success_msg = f"Successfully removed method '{method_name}' ({removed_lines_count} lines)"
         logger.info(success_msg)
 
+        # 0-based index where the removed method started (first decorator or def line)
+        insert_at = start_line - 1
+
         return {
             'success': True,
             'message': success_msg,
             'method_name': method_name,
             'file_path': test_file_path,
-            'removed_lines': removed_lines_count
+            'removed_lines': removed_lines_count,
+            'insert_at': insert_at
         }
 
     except Exception as e:

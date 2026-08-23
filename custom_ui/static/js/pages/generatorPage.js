@@ -81,8 +81,8 @@ class GeneratorPage {
 
         this.excelFiles.forEach(file => {
             const option = document.createElement('option');
-            option.value = file;
-            option.textContent = file;
+            option.value = file.path;
+            option.textContent = file.name;
             dropdown.appendChild(option);
         });
 
@@ -450,6 +450,10 @@ function executeGeneratedTest() {
 
 function showAllureReport() {
     generatorPage.generateReport();
+}
+
+function reloadGeneratorExcelFiles() {
+    generatorPage.loadExcelFiles();
 }
 
 // Export for use in other modules

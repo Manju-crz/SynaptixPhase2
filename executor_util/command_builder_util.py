@@ -31,7 +31,8 @@ class CommandBuilder:
         include_allure: bool = True,
         verbose: bool = True,
         show_output: bool = True,
-        method_name: str = None
+        method_name: str = None,
+        class_only: bool = False
     ) -> Optional[str]:
         """
         Build pytest command string for executing AI-generated test method.
@@ -45,6 +46,7 @@ class CommandBuilder:
             method_name: Specific test method name to execute. If provided, this
                         method is targeted directly. If None, falls back to finding
                         the first AI test method (ending with _ai) in the file.
+            class_only: If True, target the class (all methods) instead of one method.
 
         Returns:
             Formatted pytest command string or None if error
@@ -70,23 +72,27 @@ class CommandBuilder:
                 logger.error(f"No test class found in {file_path}")
                 return None
 
-            # Determine which method to execute
-            if method_name:
-                # Use the explicitly provided method name
-                target_method = method_name
-                logger.info(f"Using specified test method: {target_method}")
-            else:
-                # Fall back to finding the first AI test method
-                target_method = self._find_ai_test_method(file_path, class_name)
-                if not target_method:
-                    logger.error(f"No AI test method (ending with _ai) found in {file_path}")
-                    return None
-
             # Build relative path for pytest
             relative_path = f".\\rest_test\\{folder_name}\\{file_name}.py"
 
-            # Build command - concatenate path and test selector without space
-            test_selector = f"{relative_path}::{class_name}::{target_method}"
+            if class_only:
+                # Target the whole class (all methods)
+                test_selector = f"{relative_path}::{class_name}"
+            else:
+                # Determine which method to execute
+                if method_name:
+                    # Use the explicitly provided method name
+                    target_method = method_name
+                    logger.info(f"Using specified test method: {target_method}")
+                else:
+                    # Fall back to finding the first AI test method
+                    target_method = self._find_ai_test_method(file_path, class_name)
+                    if not target_method:
+                        logger.error(f"No AI test method (ending with _ai) found in {file_path}")
+                        return None
+
+                # Build command - concatenate path and test selector without space
+                test_selector = f"{relative_path}::{class_name}::{target_method}"
 
             command_parts = [
                 "pytest",
@@ -212,18 +218,20 @@ def build_pytest_command(
     file_name: str,
     include_allure: bool = True,
     project_root: str = None,
-    method_name: str = None
+    method_name: str = None,
+    class_only: bool = False
 ) -> Optional[str]:
     """
     Convenience function to build pytest command string.
 
     Args:
         folder_name: Test folder name (e.g., "test8")
-        file_name: Test file name without .py (e.g., "test8")
+        file_name: Test file name without .py extension (e.g., "test8")
         include_allure: Whether to include --alluredir flag
         project_root: Project root directory
         method_name: Specific test method name to execute (optional). If None,
                     falls back to the first AI test method in the file.
+        class_only: If True, target the whole class (all methods).
 
     Returns:
         Formatted pytest command string or None
@@ -234,6 +242,4 @@ def build_pytest_command(
         pytest .\\rest_test\\test8\\test8.py::TestGeneratedAPIs::test_02_update_pet_ai -v -s --alluredir=allure-results
     """
     builder = CommandBuilder(project_root)
-    return builder.build_pytest_command(folder_name, file_name, include_allure, method_name=method_name)
-
-    
+    return builder.build_pytest_command(folder_name, file_name, include_allure, method_name=method_name, class_only=class_only)

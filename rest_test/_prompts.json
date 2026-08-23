@@ -1,41 +1,30 @@
 {
     "components": {
-        "pett": {
-            "test": {
+        "TestComponent_05": {
+            "TestFile_01": {
                 "methods": {
-                    "test_01_create_a_new_pet_in_pest_store_ai_12": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response"
+                    "test_03_create_a_new_pet_in_pest_store_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response",
+                    "test_01_create_a_new_pet_in_pest_store_ai_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response",
+                    "test_02_create_a_new_pet_in_pest_store_ai_ai_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response"
                 },
-                "class_name": "PetT"
-            },
-            "TestFile_02": {
-                "methods": {
-                    "test_01_create_a_new_pet_in_pest_store_ai": "Create a new pet in pest store -> Use a unique pet name by generating a random string while creating new pet -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response while updating, and also use another unique random pet name generated while updating the pet name; Delete a pet -> Use the pet_id from previous response"
-                },
-                "class_name": "pettTestFile02"
+                "class_name": "TestComponent05TestFile01"
             }
         },
-        "pet2": {
-            "test2": {
+        "TestComponent_02": {
+            "TestFile_01": {
                 "methods": {
-                    "test_01_create_a_new_pet_in_pest_store_ai_11": "Create a new pet in pest store -> Use a unique pet name by generating a random string while creating new pet -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response while updating, and also use another unique random pet name generated while updating the pet name; Delete a pet -> Use the pet_id from previous response"
+                    "test_01_create_a_new_pet_in_pest_store_ai_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response"
                 },
-                "class_name": "pet2test22"
+                "class_name": "TestComponent02TestFile01"
             }
         },
-        "renamecomp": {
-            "jsonupdate": {
+        "TestComponent_03": {
+            "TestFile_01": {
                 "methods": {
-                    "test_01_create_a_new_pet_in_pest_store_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response"
+                    "test_01_create_a_new_pet_in_pest_store_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response",
+                    "test_02_create_a_new_pet_in_pest_store_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response"
                 },
-                "class_name": "RenamedTest"
-            }
-        },
-        "edit1": {
-            "file1": {
-                "methods": {
-                    "test_01_create_a_new_pet_in_pest_store_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response"
-                },
-                "class_name": "EditFileTest"
+                "class_name": "TestComponent03TestFile01"
             }
         }
     }

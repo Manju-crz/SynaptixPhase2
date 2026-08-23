@@ -7,6 +7,8 @@ import os
 import re
 import logging
 
+from generator_altUtl.allure_suite_update_util import update_allure_suite
+
 logger = logging.getLogger(__name__)
 
 
@@ -120,6 +122,9 @@ def rename_class_in_file(subfolder_name, file_name, old_class_name, new_class_na
                 'new_class_name': new_class_name,
                 'file_path': test_file_path
             }
+
+        # Keep the allure.suite annotation in sync with the class name
+        new_content, _ = update_allure_suite(new_content, new_class_name)
 
         # Write back to file
         with open(test_file_path, 'w', encoding='utf-8') as f:

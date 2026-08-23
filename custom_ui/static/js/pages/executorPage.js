@@ -78,8 +78,8 @@ class ExecutorPage {
 
         this.excelFiles.forEach(file => {
             const option = document.createElement('option');
-            option.value = file;
-            option.textContent = file;
+            option.value = file.path;
+            option.textContent = file.name;
             dropdown.appendChild(option);
         });
 

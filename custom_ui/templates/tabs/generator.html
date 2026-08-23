@@ -13,7 +13,10 @@
 
     <div class="generator-header-selectors">
         <div class="input-section">
-            <label for="generatorExcelFileSelect">📁 Select Excel File:</label>
+            <label for="generatorExcelFileSelect">
+                <span class="excel-reload-icon" onclick="event.preventDefault(); reloadGeneratorExcelFiles();" title="Reload Excel files">🔄</span>
+                📁 Select Excel File:
+            </label>
             <select id="generatorExcelFileSelect" class="select-input">
                 <option value="">Loading files...</option>
             </select>

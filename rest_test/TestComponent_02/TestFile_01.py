@@ -1,6 +1,6 @@
 """
 Generated Test File
-Generated on: 2026-08-23 18:40:04
+Generated on: 2026-08-24 01:51:19
 Base URL: https://petstore.swagger.io/v2
 Excel Source: OpenAPI_Data_2026_08_04_01_15.xlsx
 """
@@ -21,13 +21,13 @@ def api_client():
     yield client
     client.close()
 
-@allure.suite('Generated API Tests')
-class RenamedTest:
+@allure.suite('TestComponent02TestFile01')
+class TestComponent02TestFile01:
     """
     Auto-generated test class based on natural language queries
     """
 
-    def test_01_create_a_new_pet_in_pest_store_ai(self, api_client):
+    def test_01_create_a_new_pet_in_pest_store_ai_ai(self, api_client):
         """
         Combined test executing 3 API operations
         """
@@ -38,13 +38,15 @@ class RenamedTest:
         allure.dynamic.parameter("Step_1_Endpoint", "/pet")
 
         step1_endpoint = "/pet"
-        payload = {"name": "Fido", "status": "available"}  # Example payload for creating a pet
+        payload = {
+            # Add necessary fields for creating a pet (e.g., name, type, etc.)
+        }
 
         with allure.step("Step 1: POST /pet"):
             logger.info(f"🚀 Step 1: {'POST'} {step1_endpoint}")
             response1 = api_client.post(
                 endpoint=step1_endpoint,
-                json_payload=payload  # Use json_payload for application/json
+                json_payload=payload  # Assuming the Content-Type is 'application/json'
             )
 
             logger.info(f"📥 Step 1 Response Status: {response1.status_code}")
@@ -74,13 +76,16 @@ class RenamedTest:
         allure.dynamic.parameter("Step_2_Endpoint", "/pet")
 
         step2_endpoint = "/pet"
-        update_payload = {"pet_id": extracted_pet_id, "status": "sold"}  # Example payload for updating a pet
+        update_payload = {
+            "pet_id": extracted_pet_id,
+            # Add other fields to update if necessary
+        }
 
         with allure.step("Step 2: PUT /pet"):
             logger.info(f"🚀 Step 2: {'PUT'} {step2_endpoint}")
             response2 = api_client.put(
                 endpoint=step2_endpoint,
-                json_payload=update_payload  # Use json_payload for application/json
+                json_payload=update_payload  # Assuming the Content-Type is 'application/json'
             )
 
             logger.info(f"📥 Step 2 Response Status: {response2.status_code}")
@@ -95,23 +100,14 @@ class RenamedTest:
             assert response2.is_success(), f"Step 2 failed with status {response2.status_code}"
             logger.info(f"✅ Step 2 passed - Status: {response2.status_code}")
 
-            # Extract fields from response for use in subsequent steps
-            if response2.json_data and 'id' in response2.json_data:
-                extracted_id = response2.json_data['id']
-                logger.info(f"📌 Extracted id: {extracted_id}")
-                allure.dynamic.parameter("Extracted_id", extracted_id)
-            else:
-                logger.warning("⚠️  'id' not found in response, using default value")
-                extracted_id = 1  # Default value if not found
-
         # Step 3: Delete a pet
         allure.dynamic.parameter("Step_3_Sl_No", 8)
         allure.dynamic.parameter("Step_3_Method", "DELETE")
-        allure.dynamic.parameter("Step_3_Endpoint", "/pet/{petId}")
+        allure.dynamic.parameter("Step_3_Endpoint", f"/pet/{extracted_pet_id}")
 
-        step3_endpoint = f"/pet/{extracted_pet_id}"  # Use the extracted pet_id
+        step3_endpoint = f"/pet/{extracted_pet_id}"
 
-        with allure.step("Step 3: DELETE /pet/{petId}"):
+        with allure.step(f"Step 3: DELETE /pet/{extracted_pet_id}"):
             logger.info(f"🚀 Step 3: {'DELETE'} {step3_endpoint}")
             response3 = api_client.delete(
                 endpoint=step3_endpoint
@@ -128,5 +124,7 @@ class RenamedTest:
 
             assert response3.is_success(), f"Step 3 failed with status {response3.status_code}"
             logger.info(f"✅ Step 3 passed - Status: {response3.status_code}")
+
+
 
 

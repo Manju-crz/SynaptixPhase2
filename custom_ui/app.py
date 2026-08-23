@@ -7,6 +7,7 @@ import os
 import threading
 import time
 import logging
+import shutil
 from flask import Flask, render_template, request, jsonify
 
 logger = logging.getLogger(__name__)
@@ -207,6 +208,8 @@ def run_generator():
     file_name = data.get('file_name', '')
     query = data.get('query', '')
     ai_model = data.get('ai_model', 'openai')
+    replace_method = data.get('replace_method', False)
+    method_name = data.get('method_name')
 
     if not excel_path:
         return jsonify({'success': False, 'message': 'Excel file path is required'}), 400
@@ -282,7 +285,8 @@ def run_generator():
             queries=queries,
             folder_name=folder_name,
             filename=file_name,
-            original_query=query
+            original_query=query,
+            replace_method_name=method_name if replace_method and method_name else None
         )
 
         if result['success']:
@@ -438,14 +442,14 @@ def run_generator():
         }), 500
 
 
-def execute_test_in_background(test_id, folder_name, file_name, project_root, method_name=None):
+def execute_test_in_background(test_id, folder_name, file_name, project_root, method_name=None, class_only=False):
     """Background thread function to execute pytest command"""
     import logging
     logger = logging.getLogger(__name__)
 
     try:
         logger.info(f"[Thread {test_id}] Building pytest command...")
-        pytest_command = build_pytest_command(folder_name, file_name, method_name=method_name)
+        pytest_command = build_pytest_command(folder_name, file_name, method_name=method_name, class_only=class_only)
 
         if not pytest_command:
             test_execution_results[test_id] = {
@@ -540,6 +544,69 @@ def execute_generated_test():
         import traceback
         error_trace = traceback.format_exc()
         logger.error(f"Error starting test execution: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e),
+            'error': error_trace,
+            'status': 'error'
+        }), 500
+
+
+@app.route('/execute-class-tests', methods=['POST'])
+def execute_class_tests():
+    """Start class-level test execution in background thread and return immediately"""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        logger.info("=== Execute Class Tests Route Called ===")
+        data = request.get_json()
+        folder_name = data.get('folder_name')
+        file_name = data.get('file_name')
+
+        logger.info(f"Received from UI - folder: {folder_name}, file: {file_name}")
+
+        if not folder_name or not file_name:
+            logger.error("Missing folder_name or file_name from UI")
+            return jsonify({
+                'success': False,
+                'message': 'Folder name and file name are required.',
+                'status': 'error'
+            }), 400
+
+        # Generate unique test ID
+        test_id = f"{folder_name}_{file_name}_class_{int(time.time())}"
+
+        # Initialize result as running
+        test_execution_results[test_id] = {
+            'status': 'running',
+            'message': 'Class test execution started...'
+        }
+
+        # Start execution in background thread
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        thread = threading.Thread(
+            target=execute_test_in_background,
+            args=(test_id, folder_name, file_name, project_root),
+            kwargs={'class_only': True},
+            daemon=True
+        )
+        thread.start()
+
+        logger.info(f"Started background thread for test_id: {test_id}")
+
+        # Return test_id for polling
+        return jsonify({
+            'success': True,
+            'test_id': test_id,
+            'status': 'running',
+            'message': 'Class test execution started in background'
+        })
+
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"Error starting class test execution: {str(e)}")
         return jsonify({
             'success': False,
             'message': str(e),
@@ -912,6 +979,28 @@ def delete_component_folder():
             'success': False,
             'message': f'Error: {str(e)}'
         }), 500
+
+
+@app.route('/clear-execution-results', methods=['POST'])
+def clear_execution_results():
+    """Delete allure-results and allure-report folders"""
+    try:
+        logger.info("=== Clear Execution Results Route Called ===")
+        results_path = os.path.join(PROJECT_ROOT, "allure-results")
+        report_path = os.path.join(PROJECT_ROOT, "allure-report")
+        deleted = []
+        for path in (results_path, report_path):
+            if os.path.exists(path):
+                shutil.rmtree(path)
+                deleted.append(os.path.basename(path))
+        return jsonify({
+            'success': True,
+            'message': f"Deleted: {', '.join(deleted)}" if deleted else "Nothing to clear",
+            'deleted': deleted
+        })
+    except Exception as e:
+        logger.error(f"Error clearing execution results: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/show-allure-report', methods=['POST'])
