@@ -56,7 +56,10 @@ def run_test():
         return jsonify({'success': False, 'message': 'URL is required'}), 400
 
     try:
-        result = run_swagger_scraper(url)
+        filename_prefix = data.get('filename_prefix', 'Swagger_Data')
+        logger.info(f"📝 Received filename_prefix: '{filename_prefix}'")
+        logger.info(f"📝 Request data: {data}")
+        result = run_swagger_scraper(url, filename_prefix)
         return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -76,7 +79,8 @@ def run_json_parser():
             return jsonify({'success': False, 'message': 'JSON file content is required'}), 400
 
         try:
-            result = run_openapi_json_parser(spec_url=None, spec_content=spec_content, filename=filename)
+            filename_prefix = data.get('filename_prefix', 'OpenAPI_Data')
+            result = run_openapi_json_parser(spec_url=None, spec_content=spec_content, filename=filename, filename_prefix=filename_prefix)
             return jsonify(result)
         except Exception as e:
             return jsonify({'success': False, 'message': str(e)}), 500
@@ -87,7 +91,10 @@ def run_json_parser():
             return jsonify({'success': False, 'message': 'Spec URL or uploaded JSON file is required'}), 400
 
         try:
-            result = run_openapi_json_parser(spec_url=spec_url)
+            filename_prefix = data.get('filename_prefix', 'OpenAPI_Data')
+            logger.info(f"📝 Received filename_prefix: '{filename_prefix}'")
+            logger.info(f"📝 Request data: {data}")
+            result = run_openapi_json_parser(spec_url=spec_url, filename_prefix=filename_prefix)
             return jsonify(result)
         except Exception as e:
             return jsonify({'success': False, 'message': str(e)}), 500

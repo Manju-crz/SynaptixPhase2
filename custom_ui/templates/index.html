@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Synaptix AI-Based API Test Automation Code Generator</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='2') }}">
     <!-- New Component Styles -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/notification.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/notification.css', v='2') }}">
 </head>
 <body>
     <div class="container">
@@ -94,12 +94,12 @@
     
     <!-- Page controllers (load third) -->
     <script src="{{ url_for('static', filename='js/pages/configurationPage.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/pages/executorPage.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/pages/generatorPage.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/pages/swaggerScraperPage.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/pages/openapiParserPage.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pages/executorPage.js', v='7') }}"></script>
+    <script src="{{ url_for('static', filename='js/pages/generatorPage.js', v='7') }}"></script>
+    <script src="{{ url_for('static', filename='js/pages/swaggerScraperPage.js', v='7') }}"></script>
+    <script src="{{ url_for('static', filename='js/pages/openapiParserPage.js', v='7') }}"></script>
     
     <!-- Main script (load last for backward compatibility) -->
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js', v='7') }}"></script>
 </body>
 </html>

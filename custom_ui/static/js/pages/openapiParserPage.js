@@ -3,6 +3,49 @@
  * Manages the OpenAPI JSON Parser tab UI and business logic
  */
 
+function updateJsonParserControls() {
+    const input = document.getElementById('jsonFilePrefixInput');
+    const checkbox = document.getElementById('jsonDefaultFileNameCheckbox');
+    const button = document.getElementById('runJsonParserBtn');
+    const clearLink = document.getElementById('jsonClearPrefixLink');
+    if (!input || !checkbox || !button || !clearLink) return;
+
+    if (checkbox.checked) {
+        input.disabled = true;
+        button.disabled = false;
+        button.style.background = 'rgba(0, 212, 255, 0.8)';
+        button.style.color = '#fff';
+        button.style.cursor = 'pointer';
+        clearLink.style.opacity = '0.5';
+        clearLink.style.pointerEvents = 'none';
+    } else if (input.value.trim() !== '') {
+        checkbox.disabled = true;
+        button.disabled = false;
+        button.style.background = 'rgba(0, 212, 255, 0.8)';
+        button.style.color = '#fff';
+        button.style.cursor = 'pointer';
+        clearLink.style.opacity = '1';
+        clearLink.style.pointerEvents = 'auto';
+    } else {
+        checkbox.disabled = false;
+        input.disabled = false;
+        button.disabled = true;
+        button.style.background = 'rgba(0, 212, 255, 0.2)';
+        button.style.color = 'rgba(255, 255, 255, 0.4)';
+        button.style.cursor = 'not-allowed';
+        clearLink.style.opacity = '0.5';
+        clearLink.style.pointerEvents = 'none';
+    }
+}
+
+function clearJsonPrefix() {
+    const input = document.getElementById('jsonFilePrefixInput');
+    if (input) {
+        input.value = '';
+        updateJsonParserControls();
+    }
+}
+
 class OpenAPIParserPage {
     constructor() {
         this.isRunning = false;
@@ -11,6 +54,7 @@ class OpenAPIParserPage {
 
     init() {
         console.log('OpenAPIParserPage initialized');
+        updateJsonParserControls();
     }
 
     async runParser() {
@@ -20,6 +64,17 @@ class OpenAPIParserPage {
         }
 
         const url = document.getElementById('jsonUrlInput')?.value;
+        const checkboxChecked = document.getElementById('jsonDefaultFileNameCheckbox')?.checked;
+        const inputValue = document.getElementById('jsonFilePrefixInput')?.value.trim();
+        
+        console.log('🔍 DEBUG: Checkbox checked:', checkboxChecked);
+        console.log('🔍 DEBUG: Input value:', inputValue);
+        
+        const filenamePrefix = checkboxChecked
+            ? 'OpenAPI_Data'
+            : (inputValue || 'OpenAPI_Data');
+        
+        console.log('🔍 DEBUG: Final filename prefix:', filenamePrefix);
 
         // Validation
         if (!Validators.isNotEmpty(url)) {
@@ -47,13 +102,14 @@ class OpenAPIParserPage {
 
         try {
             console.log('Running OpenAPI JSON Parser for:', url);
+            console.log('Filename prefix:', filenamePrefix);
 
             const response = await fetch('/run-json-parser', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ url: url })
+                body: JSON.stringify({ url: url, filename_prefix: filenamePrefix })
             });
 
             const data = await response.json();
@@ -82,7 +138,7 @@ class OpenAPIParserPage {
             // Reset state
             this.isRunning = false;
             if (button) {
-                button.disabled = false;
+                updateJsonParserControls();
                 button.textContent = '▶️ Run JSON Parser';
             }
         }

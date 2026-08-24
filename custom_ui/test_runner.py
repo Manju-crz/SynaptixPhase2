@@ -40,7 +40,7 @@ columns = [
 ]
 
 
-def run_swagger_scraper(url: str) -> dict:
+def run_swagger_scraper(url: str, filename_prefix: str = "Swagger_Data") -> dict:
     """
     Run the Swagger page test with the provided URL.
 
@@ -153,7 +153,7 @@ def run_swagger_scraper(url: str) -> dict:
         # Create Excel file and write data
         PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         folder_path = os.path.join(PROJECT_ROOT, "Rest_API_Data")
-        file_path = create_excel_with_data(folder_path, "Swagger_Data", "Data", columns, excel_data)
+        file_path = create_excel_with_data(folder_path, filename_prefix, "Data", columns, excel_data)
         logs.append(f"✅ Excel file created: {file_path}")
 
         # Remove body_element from api_operations before returning (not JSON serializable)
@@ -186,7 +186,7 @@ def run_swagger_scraper(url: str) -> dict:
         logs.append("Browser closed")
 
 
-def run_openapi_json_parser(spec_url: str = None, spec_content: str = None, filename: str = None) -> dict:
+def run_openapi_json_parser(spec_url: str = None, spec_content: str = None, filename: str = None, filename_prefix: str = "OpenAPI_Data") -> dict:
     """
     Run the OpenAPI JSON parser with either a spec URL or raw JSON file content.
 
@@ -276,7 +276,7 @@ def run_openapi_json_parser(spec_url: str = None, spec_content: str = None, file
         # Create Excel file
         PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         folder_path = os.path.join(PROJECT_ROOT, "Rest_API_Data")
-        file_path = create_excel_with_data(folder_path, "OpenAPI_Data", "Data", columns, excel_data)
+        file_path = create_excel_with_data(folder_path, filename_prefix, "Data", columns, excel_data)
         logs.append(f"✅ Excel file created: {file_path}")
 
         return {

@@ -1551,6 +1551,15 @@ async function runUiScraper() {
         return;
     }
 
+    // Get filename prefix from checkbox or input field
+    const checkboxChecked = document.getElementById('swaggerDefaultFileNameCheckbox')?.checked;
+    const inputValue = document.getElementById('swaggerFilePrefixInput')?.value.trim();
+    const filenamePrefix = checkboxChecked ? 'Swagger_Data' : (inputValue || 'Swagger_Data');
+    
+    console.log('🔍 DEBUG (script.js): Checkbox checked:', checkboxChecked);
+    console.log('🔍 DEBUG (script.js): Input value:', inputValue);
+    console.log('🔍 DEBUG (script.js): Final filename prefix:', filenamePrefix);
+
     // Show loading state
     runBtn.disabled = true;
     runBtn.textContent = '⏳ Running...';
@@ -1567,7 +1576,7 @@ async function runUiScraper() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ url: url })
+            body: JSON.stringify({ url: url, filename_prefix: filenamePrefix })
         });
 
         const result = await response.json();
@@ -1622,6 +1631,15 @@ async function runJsonParser() {
         return;
     }
 
+    // Get filename prefix from checkbox or input field
+    const checkboxChecked = document.getElementById('jsonDefaultFileNameCheckbox')?.checked;
+    const inputValue = document.getElementById('jsonFilePrefixInput')?.value.trim();
+    const filenamePrefix = checkboxChecked ? 'OpenAPI_Data' : (inputValue || 'OpenAPI_Data');
+    
+    console.log('🔍 DEBUG (script.js): Checkbox checked:', checkboxChecked);
+    console.log('🔍 DEBUG (script.js): Input value:', inputValue);
+    console.log('🔍 DEBUG (script.js): Final filename prefix:', filenamePrefix);
+
     let bodyData = {};
     let requestType = 'url';
 
@@ -1637,13 +1655,15 @@ async function runJsonParser() {
         bodyData = {
             type: 'file',
             filename: file.name,
-            content: fileContent
+            content: fileContent,
+            filename_prefix: filenamePrefix
         };
         requestType = 'file';
     } else {
         bodyData = {
             type: 'url',
-            url: url
+            url: url,
+            filename_prefix: filenamePrefix
         };
     }
 

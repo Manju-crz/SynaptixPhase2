@@ -3,6 +3,49 @@
  * Manages the Swagger UI Scraper tab UI and business logic
  */
 
+function updateSwaggerScraperControls() {
+    const input = document.getElementById('swaggerFilePrefixInput');
+    const checkbox = document.getElementById('swaggerDefaultFileNameCheckbox');
+    const button = document.getElementById('runUiScraperBtn');
+    const clearLink = document.getElementById('swaggerClearPrefixLink');
+    if (!input || !checkbox || !button || !clearLink) return;
+
+    if (checkbox.checked) {
+        input.disabled = true;
+        button.disabled = false;
+        button.style.background = 'rgba(0, 212, 255, 0.8)';
+        button.style.color = '#fff';
+        button.style.cursor = 'pointer';
+        clearLink.style.opacity = '0.5';
+        clearLink.style.pointerEvents = 'none';
+    } else if (input.value.trim() !== '') {
+        checkbox.disabled = true;
+        button.disabled = false;
+        button.style.background = 'rgba(0, 212, 255, 0.8)';
+        button.style.color = '#fff';
+        button.style.cursor = 'pointer';
+        clearLink.style.opacity = '1';
+        clearLink.style.pointerEvents = 'auto';
+    } else {
+        checkbox.disabled = false;
+        input.disabled = false;
+        button.disabled = true;
+        button.style.background = 'rgba(0, 212, 255, 0.2)';
+        button.style.color = 'rgba(255, 255, 255, 0.4)';
+        button.style.cursor = 'not-allowed';
+        clearLink.style.opacity = '0.5';
+        clearLink.style.pointerEvents = 'none';
+    }
+}
+
+function clearSwaggerPrefix() {
+    const input = document.getElementById('swaggerFilePrefixInput');
+    if (input) {
+        input.value = '';
+        updateSwaggerScraperControls();
+    }
+}
+
 class SwaggerScraperPage {
     constructor() {
         this.isRunning = false;
@@ -11,6 +54,7 @@ class SwaggerScraperPage {
 
     init() {
         console.log('SwaggerScraperPage initialized');
+        updateSwaggerScraperControls();
     }
 
     async runScraper() {
@@ -20,6 +64,17 @@ class SwaggerScraperPage {
         }
 
         const url = document.getElementById('uiUrlInput')?.value;
+        const checkboxChecked = document.getElementById('swaggerDefaultFileNameCheckbox')?.checked;
+        const inputValue = document.getElementById('swaggerFilePrefixInput')?.value.trim();
+        
+        console.log('🔍 DEBUG: Checkbox checked:', checkboxChecked);
+        console.log('🔍 DEBUG: Input value:', inputValue);
+        
+        const filenamePrefix = checkboxChecked
+            ? 'Swagger_Data'
+            : (inputValue || 'Swagger_Data');
+        
+        console.log('🔍 DEBUG: Final filename prefix:', filenamePrefix);
 
         // Validation
         if (!Validators.isNotEmpty(url)) {
@@ -47,13 +102,14 @@ class SwaggerScraperPage {
 
         try {
             console.log('Running Swagger UI Scraper for:', url);
+            console.log('Filename prefix:', filenamePrefix);
 
             const response = await fetch('/run-test', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ url: url })
+                body: JSON.stringify({ url: url, filename_prefix: filenamePrefix })
             });
 
             const data = await response.json();
@@ -82,7 +138,7 @@ class SwaggerScraperPage {
             // Reset state
             this.isRunning = false;
             if (button) {
-                button.disabled = false;
+                updateSwaggerScraperControls();
                 button.textContent = '▶️ Run UI Scraper';
             }
         }
