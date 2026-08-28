@@ -46,6 +46,312 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/get-test-structure', methods=['GET'])
+def get_test_structure():
+    """Get the test folder structure with files and methods"""
+    import os
+    import ast
+    import re
+    
+    test_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'rest_test')
+    structure = []
+    
+    try:
+        # Iterate through folders in rest_test
+        for folder_name in sorted(os.listdir(test_folder)):
+            folder_path = os.path.join(test_folder, folder_name)
+            
+            # Skip if not a directory or if it's __pycache__
+            if not os.path.isdir(folder_path) or folder_name.startswith('__'):
+                continue
+            
+            folder_data = {
+                'name': folder_name,
+                'type': 'folder',
+                'files': []
+            }
+            
+            # Iterate through Python files in the folder
+            for file_name in sorted(os.listdir(folder_path)):
+                if file_name.endswith('.py') and not file_name.startswith('__'):
+                    file_path = os.path.join(folder_path, file_name)
+                    
+                    file_data = {
+                        'name': file_name,
+                        'type': 'file',
+                        'methods': []
+                    }
+                    
+                    # Parse the Python file to extract test methods
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            file_content = f.read()
+                            tree = ast.parse(file_content)
+                            
+                            # Find all test methods
+                            for node in ast.walk(tree):
+                                if isinstance(node, ast.ClassDef):
+                                    for item in node.body:
+                                        if isinstance(item, ast.FunctionDef):
+                                            method_name = item.name
+                                            if method_name.startswith('test_'):
+                                                # Extract docstring if available
+                                                docstring = ast.get_docstring(item) or ''
+                                                file_data['methods'].append({
+                                                    'name': method_name,
+                                                    'description': docstring.strip().split('\n')[0] if docstring else ''
+                                                })
+                    except Exception as e:
+                        logger.warning(f"Could not parse {file_path}: {str(e)}")
+                    
+                    if file_data['methods']:  # Only add file if it has test methods
+                        folder_data['files'].append(file_data)
+            
+            if folder_data['files']:  # Only add folder if it has files with methods
+                structure.append(folder_data)
+        
+        return jsonify({'success': True, 'structure': structure})
+    
+    except Exception as e:
+        logger.error(f"Error getting test structure: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/run-selected-tests', methods=['POST'])
+def run_selected_tests():
+    """Execute selected test cases using pytest"""
+    import subprocess
+    import json
+    from datetime import datetime
+    
+    data = request.get_json() or {}
+    test_paths = data.get('test_paths', [])
+    
+    if not test_paths:
+        return jsonify({'success': False, 'message': 'No tests selected'}), 400
+    
+    try:
+        # Convert test paths to pytest format
+        # Format: TestComponent_02/TestFile_01.py::TestComponent02TestFile01::test_01_create_a_new_pet
+        pytest_args = []
+        for test_path in test_paths:
+            # Extract folder, file, and method
+            parts = test_path.split('/')
+            if len(parts) == 2:
+                folder = parts[0]
+                file_and_method = parts[1].split('::')
+                if len(file_and_method) == 2:
+                    file_name = file_and_method[0]
+                    method_name = file_and_method[1]
+                    
+                    # Construct the full path
+                    test_file_path = os.path.join('rest_test', folder, file_name)
+                    
+                    # Add to pytest args
+                    pytest_args.append(f"{test_file_path}::{method_name}")
+        
+        if not pytest_args:
+            return jsonify({'success': False, 'message': 'Invalid test paths'}), 400
+        
+        logger.info(f"🚀 Running {len(pytest_args)} tests...")
+        logger.info(f"Test paths: {pytest_args}")
+        
+        # Run pytest with JSON report
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        json_report_path = os.path.join('test_reports', f'test_report_{timestamp}.json')
+        
+        # Create test_reports directory if it doesn't exist
+        os.makedirs('test_reports', exist_ok=True)
+        
+        # Build pytest command with Allure reporting
+        pytest_cmd = [
+            'pytest',
+            '-v',  # Verbose
+            '--tb=short',  # Short traceback
+            f'--json-report',
+            f'--json-report-file={json_report_path}',
+            '--json-report-indent=2',
+            '--alluredir=allure-results'  # Generate Allure results
+        ] + pytest_args
+        
+        logger.info(f"Executing: {' '.join(pytest_cmd)}")
+        
+        # Run pytest
+        result = subprocess.run(
+            pytest_cmd,
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(__file__))
+        )
+        
+        # Parse results
+        test_results = {
+            'total': len(pytest_args),
+            'passed': 0,
+            'failed': 0,
+            'skipped': 0,
+            'error': 0,
+            'duration': 0,
+            'tests': []
+        }
+        
+        # Try to read JSON report
+        if os.path.exists(json_report_path):
+            try:
+                with open(json_report_path, 'r') as f:
+                    report_data = json.load(f)
+                    
+                    # Extract summary
+                    summary = report_data.get('summary', {})
+                    test_results['passed'] = summary.get('passed', 0)
+                    test_results['failed'] = summary.get('failed', 0)
+                    test_results['skipped'] = summary.get('skipped', 0)
+                    test_results['error'] = summary.get('error', 0)
+                    test_results['duration'] = report_data.get('duration', 0)
+                    
+                    # Extract individual test results
+                    for test in report_data.get('tests', []):
+                        test_results['tests'].append({
+                            'name': test.get('nodeid', ''),
+                            'outcome': test.get('outcome', 'unknown'),
+                            'duration': test.get('duration', 0),
+                            'message': test.get('call', {}).get('longrepr', '') if test.get('outcome') == 'failed' else ''
+                        })
+            except Exception as e:
+                logger.warning(f"Could not parse JSON report: {str(e)}")
+        
+        # If JSON report not available, parse stdout
+        if not test_results['tests']:
+            # Parse pytest output
+            output_lines = result.stdout.split('\n')
+            for line in output_lines:
+                if 'PASSED' in line:
+                    test_results['passed'] += 1
+                elif 'FAILED' in line:
+                    test_results['failed'] += 1
+                elif 'SKIPPED' in line:
+                    test_results['skipped'] += 1
+                elif 'ERROR' in line:
+                    test_results['error'] += 1
+        
+        logger.info(f"✅ Test execution completed: {test_results['passed']} passed, {test_results['failed']} failed")
+        
+        return jsonify({
+            'success': True,
+            'results': test_results,
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+            'return_code': result.returncode
+        })
+    
+    except Exception as e:
+        logger.error(f"Error running tests: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/run-all-tests', methods=['POST'])
+def run_all_tests():
+    """Execute all tests in the rest_test directory using pytest"""
+    import subprocess
+    import json
+    from datetime import datetime
+    
+    try:
+        # Run pytest with JSON report on entire rest_test directory
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        json_report_path = os.path.join('test_reports', f'test_report_all_{timestamp}.json')
+        
+        # Create test_reports directory if it doesn't exist
+        os.makedirs('test_reports', exist_ok=True)
+        
+        # Build pytest command with json-report plugin and Allure reporting
+        pytest_cmd = [
+            'pytest',
+            '-v',  # Verbose
+            '--tb=short',  # Short traceback
+            '--json-report',
+            f'--json-report-file={json_report_path}',
+            '--alluredir=allure-results',  # Generate Allure results
+            'rest_test/'  # Run all tests in rest_test directory
+        ]
+        
+        logger.info(f"🚀 Running all tests in rest_test/ directory...")
+        logger.info(f"Executing: {' '.join(pytest_cmd)}")
+        
+        # Run pytest
+        result = subprocess.run(
+            pytest_cmd,
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(__file__))
+        )
+        
+        # Parse results
+        test_results = {
+            'total': 0,
+            'passed': 0,
+            'failed': 0,
+            'skipped': 0,
+            'error': 0,
+            'duration': 0,
+            'tests': []
+        }
+        
+        # Try to read JSON report
+        if os.path.exists(json_report_path):
+            try:
+                with open(json_report_path, 'r') as f:
+                    report_data = json.load(f)
+                    
+                    # Extract summary
+                    summary = report_data.get('summary', {})
+                    test_results['passed'] = summary.get('passed', 0)
+                    test_results['failed'] = summary.get('failed', 0)
+                    test_results['skipped'] = summary.get('skipped', 0)
+                    test_results['error'] = summary.get('error', 0)
+                    test_results['duration'] = report_data.get('duration', 0)
+                    test_results['total'] = test_results['passed'] + test_results['failed'] + test_results['skipped'] + test_results['error']
+                    
+                    # Extract individual test results
+                    for test in report_data.get('tests', []):
+                        test_results['tests'].append({
+                            'name': test.get('nodeid', ''),
+                            'outcome': test.get('outcome', 'unknown'),
+                            'duration': test.get('duration', 0),
+                            'message': test.get('call', {}).get('longrepr', '') if test.get('outcome') == 'failed' else ''
+                        })
+            except Exception as e:
+                logger.warning(f"Could not parse JSON report: {str(e)}")
+        
+        # If JSON report not available, parse stdout
+        if not test_results['tests']:
+            # Parse pytest output
+            output_lines = result.stdout.split('\n')
+            for line in output_lines:
+                if 'PASSED' in line:
+                    test_results['passed'] += 1
+                elif 'FAILED' in line:
+                    test_results['failed'] += 1
+                elif 'SKIPPED' in line:
+                    test_results['skipped'] += 1
+                elif 'ERROR' in line:
+                    test_results['error'] += 1
+        
+        logger.info(f"✅ Test execution completed: {test_results['passed']} passed, {test_results['failed']} failed")
+        
+        return jsonify({
+            'success': True,
+            'results': test_results,
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+            'return_code': result.returncode
+        })
+    
+    except Exception as e:
+        logger.error(f"Error running all tests: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/run-test', methods=['POST'])
 def run_test():
     """Execute the Swagger UI scraper with provided URL"""

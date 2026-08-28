@@ -1,27 +1,25 @@
 
 
 
-Once after generating a code in a specific test method, if at all I want to delete a method, the one which is created, so from the UI itself, I do not have an option to delete a particular method. Hence, and the utility needs to be prepared to remove the method in the generator ALT util.
-
-Similarly, if I want to delete a particular test file from the folder completely, so I should have an option to delete a test file from the UI itself.
-
-Also, I should get an option to delete a whole component. So, when I delete the component, if there are any files exisring in the folder then those files also should get delete successfully. In that way I want to implement utility function in the generator alt util only.
-
-Currently, we are having the same class name generated in all the test files when we generate the code. Therefore, after completing the code generation of a particular test file, if at all I want to rename the class name, so with the help of all the given queries or the test cases, prompt messages, I should get an utility to generate a one-word class name generated dynamically just by one click in the UI application. So accordingly, I have to implement generator altutil and the front-end option.
-
-In the code generator itself, if at all I want to load all the existing REST test files, I should be able to load into the code generator tab. Accordingly I have to implement a loader util freshly and also the relevant UI option.
-
-Update the feature of clearing the past reports before generaitng new reports.
-
-I have to implement a executor- method level, class level and the component level in the code generator tab itself. Accordingly I should even get the log tabs. So for that I have to implement a minor updates to the UI.
-
-Auto healing - After the execution of a particular test method or a class, if there are any modification needs to be done in the code because of the code failure, the auto healing should be implemented successfully. For that, I guess I have to generate a third level of utility to accept the logs as an input and to produce the output of an updated code and followed by to do the re-execution with maximum of three iterations or the number of iterations set by the user.
-
-Exploration of director's application and the relevant APIs to implement in bulk execution successfully.
-
-I have to implement a executor tab for the bulk execution purpose successfully
 
 
+Major Requirements
+------------------
+> Do a OpenAPI 3.0 parser for the responses and their examples completely by comparing Keycloak and directus.
+> Improvise the response code validation based on the Excel file responses upon the latest parser updates.
+> Improvise the request for multiple test cases with the auto-generated test data.
+> Find the techniques to identify the coverage area upon the with the help of existing automated test cases and the total number of APIs available.
+> Auto healing - After the execution of a particular test method or a class, if there are any modification needs to be done in the code because of the code failure, the auto healing should be implemented successfully. For that, I guess I have to generate a third level of utility to accept the logs as an input and to produce the output of an updated code and followed by to do the re-execution with maximum of three iterations or the number of iterations set by the user.
 
 
+Corrections
+-----------
+We have to change the name of the file OpenAI underscore parser dot py to OpenAPI underscore parser dot py.
+Have to set the similarity's minimum frequency
 
+Executor Tab
+------------
+> How to identify the exact command to run components and files inside the component and/or test methods and their combinations to execute required set from the executor tab.
+> Reusable methods appropriately to append executor commands based on the selected methods, files, components, as a backend code.
+> Frontend command executions of executor tab for specific selected methods, files, components.
+> Testing the reload structure button by updating files, methods, components from code generator.

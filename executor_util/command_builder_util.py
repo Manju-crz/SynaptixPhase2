@@ -132,12 +132,11 @@ class CommandBuilder:
 
             tree = ast.parse(file_content)
 
-            # Find class that starts with 'Test'
+            # Find the first class definition (python_classes = * in pytest.ini)
             for node in ast.walk(tree):
                 if isinstance(node, ast.ClassDef):
-                    if node.name.startswith('Test'):
-                        logger.info(f"Found test class: {node.name}")
-                        return node.name
+                    logger.info(f"Found test class: {node.name}")
+                    return node.name
 
             return None
 
@@ -198,7 +197,7 @@ class CommandBuilder:
 
             # Find all test classes
             for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef) and node.name.startswith('Test'):
+                if isinstance(node, ast.ClassDef):
                     # Look for methods in this class
                     for item in node.body:
                         if isinstance(item, ast.FunctionDef):

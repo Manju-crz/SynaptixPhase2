@@ -26,6 +26,22 @@
                 },
                 "class_name": "TestComponent03TestFile01"
             }
+        },
+        "aug28": {
+            "TestFile_02": {
+                "methods": {
+                    "test_01_obtain_the_openid_access_token_ai": "Obtain the openid access token -> use client_id as synaptix-portal, username as admin.synaptix, grant_type as password and password as admin123, and also use realm as synaptix-technologies -> Retrive the access token as bearerToken; Get the list of Get group hierarchy -> Use the above retrieved bearer token authorization -> Validate the group names existing in the list and expected are - Employees, IT, Finance, HR, Management"
+                },
+                "class_name": "aug28TestFile02"
+            }
+        },
+        "TestComponent_01": {
+            "TestFile_01": {
+                "methods": {
+                    "test_01_obtain_the_openid_access_token_ai": "Obtain the openid access token -> use client_id as synaptix-portal, username as admin.synaptix, grant_type as password and password as admin123, and also use realm as synaptix-technologies -> Retrive the access token as bearerToken; Get the list of Get group hierarchy -> Use the above retrieved bearer token authorization -> Validate the group names existing in the list and expected are - Employees, IT, Finance, HR, Management"
+                },
+                "class_name": "TestComponent01TestFile01"
+            }
         }
     }
 }

@@ -1,44 +1,246 @@
 <!-- Executor Tab Content -->
 <div class="method-description">
-    <h3>🚀 API Executor</h3>
-    <p>Execute API calls using natural language queries powered by semantic search</p>
+    <h3>🚀 Test Executor</h3>
+    <p>Select and execute test cases from the test suite</p>
     <ul>
-        <li>✅ Natural language to API mapping</li>
-        <li>✅ Automatic endpoint discovery</li>
-        <li>✅ Real-time API execution</li>
-        <li>✅ Detailed response inspection</li>
+        <li>✅ Browse test folders and files</li>
+        <li>✅ Select individual test methods</li>
+        <li>✅ Execute selected tests</li>
+        <li>✅ View test results and reports</li>
     </ul>
 </div>
 
 <div class="input-section">
-    <label for="excelFileSelect">📁 Select Excel File:</label>
-    <select id="excelFileSelect" class="select-input">
-        <option value="">Loading files...</option>
-    </select>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <label style="font-weight: bold;">📁 Test Suite Structure:</label>
+        <button onclick="executorPage.reloadTestStructure()" 
+                style="padding: 6px 12px; font-size: 0.85rem; background: rgba(0, 212, 255, 0.3); color: #fff; 
+                       border: 1px solid rgba(0, 212, 255, 0.5); border-radius: 4px; cursor: pointer; 
+                       transition: all 0.2s ease;">
+            🔄 Reload Structure
+        </button>
+    </div>
+    
+    <!-- Tree Structure Container -->
+    <div id="testTreeContainer" style="border: 1px solid rgba(0, 212, 255, 0.3); border-radius: 5px; padding: 15px; background: rgba(0, 0, 0, 0.2); max-height: 500px; overflow-y: auto;">
+        <div id="testTreeContent">
+            <p style="color: #888; text-align: center;">Loading test structure...</p>
+        </div>
+    </div>
 
-    <label for="baseUrlSelect">🌐 Select Base URL:</label>
-    <select id="baseUrlSelect" class="select-input">
-        <option value="https://petstore.swagger.io/v2">PETSTORE - https://petstore.swagger.io/v2</option>
-        <option value="https://jsonplaceholder.typicode.com">JSONPLACEHOLDER - https://jsonplaceholder.typicode.com</option>
-        <option value="custom">Custom URL...</option>
-    </select>
+    <!-- Run Tests Section -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding: 10px; background: rgba(0, 212, 255, 0.1); border-radius: 5px;">
+        <div>
+            <span id="selectedTestsCount" style="color: #00d4ff; font-weight: bold;">0 tests selected</span>
+        </div>
+        <button id="runTestsBtn" onclick="executorPage.runSelectedTests()" disabled 
+                style="padding: 10px 20px; font-size: 0.95rem; background: rgba(0, 212, 255, 0.2); color: rgba(255, 255, 255, 0.4); 
+                       border: 1px solid rgba(0, 212, 255, 0.3); border-radius: 5px; cursor: not-allowed; transition: all 0.3s ease;">
+            ▶️ Run Selected Tests
+        </button>
+    </div>
 
-    <input
-        type="url"
-        id="customBaseUrl"
-        placeholder="Enter custom base URL"
-        style="display: none;"
-    >
+    <!-- Progress Indicator -->
+    <div id="testExecutionProgress" style="display: none; margin-top: 20px;">
+        <div style="border: 1px solid rgba(0, 212, 255, 0.5); border-radius: 5px; padding: 20px; background: rgba(0, 212, 255, 0.1); text-align: center;">
+            <div style="margin-bottom: 15px;">
+                <div class="spinner" style="display: inline-block; width: 40px; height: 40px; border: 4px solid rgba(0, 212, 255, 0.3); border-top: 4px solid #00d4ff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            </div>
+            <h4 style="color: #00d4ff; margin: 10px 0;">⏳ Running Tests...</h4>
+            <p style="color: #ccc; font-size: 0.9rem; margin: 5px 0;">Please wait while tests are being executed</p>
+            <div style="margin-top: 15px;">
+                <div style="width: 100%; height: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 4px; overflow: hidden;">
+                    <div class="progress-bar-animated" style="width: 100%; height: 100%; background: linear-gradient(90deg, #00d4ff 0%, #00a8cc 50%, #00d4ff 100%); background-size: 200% 100%; animation: progressMove 1.5s linear infinite;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <label for="queryInput">💬 Natural Language Query:</label>
-    <textarea
-        id="queryInput"
-        placeholder="Example: Create a new pet in the pet store&#10;Multiple queries: Create a new pet; Update pet information; Delete a pet"
-        rows="4"
-        class="textarea-input"
-    ></textarea>
-
-    <button id="runExecutorBtn" onclick="runExecutor()">
-        ▶️ Execute Query
-    </button>
+    <!-- Test Results Section -->
+    <div id="testResultsSection" style="display: none; margin-top: 20px;">
+        <h4 style="color: #00d4ff; margin-bottom: 10px;">📊 Test Results:</h4>
+        <div id="testResultsContent" style="border: 1px solid rgba(0, 212, 255, 0.3); border-radius: 5px; padding: 15px; background: rgba(0, 0, 0, 0.2); max-height: 400px; overflow-y: auto;">
+            <!-- Results will be displayed here -->
+        </div>
+    </div>
 </div>
+
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes progressMove {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+</style>
+
+<style>
+/* Tree Structure Styles */
+.tree-folder {
+    margin-bottom: 10px;
+}
+
+.tree-folder-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.tree-folder-header:hover {
+    background: rgba(0, 212, 255, 0.2);
+}
+
+.tree-folder-icon {
+    font-size: 1rem;
+    transition: transform 0.2s ease;
+}
+
+.tree-folder-icon.expanded {
+    transform: rotate(90deg);
+}
+
+.tree-folder-name {
+    font-weight: bold;
+    color: #00d4ff;
+}
+
+.tree-folder-content {
+    margin-left: 20px;
+    margin-top: 5px;
+    display: none;
+}
+
+.tree-folder-content.expanded {
+    display: block;
+}
+
+.tree-file {
+    margin-bottom: 8px;
+}
+
+.tree-file-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.tree-file-header:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tree-file-icon {
+    font-size: 0.9rem;
+    transition: transform 0.2s ease;
+}
+
+.tree-file-icon.expanded {
+    transform: rotate(90deg);
+}
+
+.tree-file-name {
+    color: #fff;
+    font-size: 0.95rem;
+}
+
+.tree-file-content {
+    margin-left: 20px;
+    margin-top: 5px;
+    display: none;
+}
+
+.tree-file-content.expanded {
+    display: block;
+}
+
+.tree-method {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px;
+    margin-bottom: 3px;
+    border-radius: 3px;
+    transition: background 0.2s ease;
+}
+
+.tree-method:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tree-method-checkbox {
+    accent-color: #00d4ff;
+    cursor: pointer;
+}
+
+.tree-method-name {
+    color: #ccc;
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+.tree-method-description {
+    color: #888;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+/* Checkbox Styles */
+input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* Select All Controls */
+.select-all-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: 5px;
+}
+
+.select-all-controls button {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    background: rgba(0, 212, 255, 0.3);
+    color: #fff;
+    border: 1px solid rgba(0, 212, 255, 0.5);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.select-all-controls button:hover {
+    background: rgba(0, 212, 255, 0.5);
+}
+
+/* Run All Button - Special styling */
+.select-all-controls button[onclick*="runAllTests"] {
+    background: rgba(0, 212, 255, 0.8);
+    font-weight: bold;
+}
+
+.select-all-controls button[onclick*="runAllTests"]:hover {
+    background: rgba(0, 212, 255, 1);
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+/* Reload Button */
+button[onclick*="reloadTestStructure"]:hover {
+    background: rgba(0, 212, 255, 0.5) !important;
+}
+</style>

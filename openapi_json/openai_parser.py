@@ -305,35 +305,78 @@ class OpenAPIParser:
 
     def extract_response_schema(self, responses: Dict) -> str:
         """
-        Extract response schema from first successful response (200, 201, etc.)
-        Handles both OpenAPI 3.0 (content wrapper) and Swagger 2.0 (direct schema)
+        Extract complete response table from OpenAPI spec.
+        Handles both OpenAPI 3.0 (content wrapper) and Swagger 2.0 (direct schema).
+        Resolves $ref references in responses and schemas.
 
         Args:
             responses: Responses object from OpenAPI spec
 
         Returns:
-            str: JSON representation of the response schema
+            str: JSON representation of the complete response table
         """
         try:
-            # Try common success codes
-            for code in ['200', '201', '202', '204', 'default']:
-                if code in responses:
-                    response = responses[code]
+            response_table = {}
 
-                    # OpenAPI 3.0 structure: response.content
-                    content = response.get('content', {})
-                    if content:
-                        # Try common content types
-                        for content_type in ['application/json', 'application/xml', '*/*']:
-                            if content_type in content:
-                                schema = content[content_type].get('schema', {})
-                                return self._resolve_schema(schema)
+            for code, response in responses.items():
+                # Resolve $ref if response is a reference
+                if isinstance(response, dict) and '$ref' in response:
+                    resolved = self._resolve_reference(response['$ref'])
+                    if resolved:
+                        response = resolved
+                    else:
+                        response_table[code] = {'$ref': response['$ref']}
+                        continue
 
-                    # Swagger 2.0 structure: response.schema (direct)
-                    if 'schema' in response:
-                        return self._resolve_schema(response['schema'])
+                response_data = {}
 
-            return ""
+                # Add description if available
+                description = response.get('description', '')
+                if description:
+                    response_data['description'] = description
+
+                # OpenAPI 3.0 structure: response.content
+                content = response.get('content', {})
+                if content:
+                    response_data['content'] = {}
+                    for content_type, content_info in content.items():
+                        content_data = {}
+
+                        # Get schema
+                        schema = content_info.get('schema', {})
+                        if schema:
+                            resolved_schema = self._resolve_schema(schema)
+                            if resolved_schema:
+                                try:
+                                    content_data['schema'] = json.loads(resolved_schema)
+                                except json.JSONDecodeError:
+                                    content_data['schema'] = resolved_schema
+
+                        # Get example if available
+                        if 'example' in content_info:
+                            content_data['example'] = content_info['example']
+
+                        response_data['content'][content_type] = content_data
+
+                # Swagger 2.0 structure: response.schema (direct)
+                elif 'schema' in response:
+                    schema = response['schema']
+                    resolved_schema = self._resolve_schema(schema)
+                    if resolved_schema:
+                        try:
+                            response_data['schema'] = json.loads(resolved_schema)
+                        except json.JSONDecodeError:
+                            response_data['schema'] = resolved_schema
+
+                # Only add if we have data
+                if response_data:
+                    response_table[code] = response_data
+
+            if not response_table:
+                return ""
+
+            return json.dumps(response_table, indent=2, ensure_ascii=False)
+
         except Exception as e:
             logger.warning(f"Failed to extract response schema: {str(e)}")
             return ""
@@ -533,7 +576,7 @@ class OpenAPIParser:
 
                 # Extract response model
                 responses = operation.get('responses', {})
-                response_model_json = self.extract_response_schema(responses)
+                standard_response_model = self.extract_response_schema(responses)
 
                 # Build operation record
                 op_record = {
@@ -550,7 +593,7 @@ class OpenAPIParser:
                     'form_data_parameters': form_data_params,
                     'request_content_type': content_type,
                     'request_body_json': example_json,
-                    'response_model_json': response_model_json
+                    'standard_response_model': standard_response_model
                 }
 
                 operations.append(op_record)

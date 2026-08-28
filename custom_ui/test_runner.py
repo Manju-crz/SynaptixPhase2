@@ -36,7 +36,7 @@ columns = [
     "form_data_parameters",
     "request_content_type",
     "request_body_json",
-    "response_model_json"
+    "standard_response_model"
 ]
 
 
@@ -119,7 +119,7 @@ def run_swagger_scraper(url: str, filename_prefix: str = "Swagger_Data") -> dict
                 path_params = ""
                 form_data_params = ""
                 example_json = ""
-                response_model_json = ""
+                standard_response_model = ""
 
                 if operation.get('body_element'):
                     secondary_summary = swagger_page.get_operation_description_text(operation['body_element'])
@@ -128,7 +128,7 @@ def run_swagger_scraper(url: str, filename_prefix: str = "Swagger_Data") -> dict
                     path_params = swagger_page.get_path_parameters(operation['body_element'])
                     form_data_params = swagger_page.get_form_data_parameters(operation['body_element'])
                     example_json = swagger_page.get_request_body_json(tag, operation['method'], operation['path'])
-                    response_model_json = swagger_page.get_response_model_json(tag, operation['method'], operation['path'])
+                    standard_response_model = swagger_page.get_standard_response_model(tag, operation['method'], operation['path'])
 
                 row = [
                     sl_no,
@@ -143,7 +143,7 @@ def run_swagger_scraper(url: str, filename_prefix: str = "Swagger_Data") -> dict
                     path_params,
                     form_data_params,
                     example_json,
-                    response_model_json
+                    standard_response_model
                 ]
                 excel_data.append(row)
                 sl_no += 1
@@ -267,7 +267,7 @@ def run_openapi_json_parser(spec_url: str = None, spec_content: str = None, file
                 op['form_data_parameters'],
                 op['request_content_type'],
                 op['request_body_json'],
-                op['response_model_json']
+                op['standard_response_model']
             ]
             excel_data.append(row)
 

@@ -70,8 +70,8 @@ def test_openapi_parser(spec_url: str):
             logger.info(f"    Path: {op['Operation_Path']}")
             logger.info(f"    Summary: {op['Operation_Summary']}")
             logger.info(f"    Component: {op['Component']}")
-            if op['response_model_json']:
-                logger.info(f"    Response Model: {op['response_model_json'][:100]}...")
+            if op['standard_response_model']:
+                logger.info(f"    Response Table: {op['standard_response_model'][:200]}...")
 
         # Prepare data for Excel
         columns = [
@@ -87,7 +87,7 @@ def test_openapi_parser(spec_url: str):
             "path_parameters",
             "form_data_parameters",
             "request_body_json",
-            "response_model_json"
+            "standard_response_model"
         ]
 
         # Convert operations to rows
@@ -106,7 +106,7 @@ def test_openapi_parser(spec_url: str):
                 op['path_parameters'],
                 op['form_data_parameters'],
                 op['request_body_json'],
-                op['response_model_json']
+                op['standard_response_model']
             ]
             excel_data.append(row)
 

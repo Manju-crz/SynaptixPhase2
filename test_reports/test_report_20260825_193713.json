@@ -1,0 +1,19 @@
+{
+  "created": 1787666835.3947675,
+  "duration": 0.030771970748901367,
+  "exitcode": 4,
+  "root": "C:\\DATA\\VS_Code_Notes\\SynaptixPhase2",
+  "environment": {},
+  "summary": {
+    "total": 0,
+    "collected": 0
+  },
+  "collectors": [
+    {
+      "nodeid": "",
+      "outcome": "passed",
+      "result": []
+    }
+  ],
+  "tests": []
+}

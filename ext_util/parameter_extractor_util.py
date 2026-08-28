@@ -83,6 +83,87 @@ class ParameterExtractor:
             logger.warning(f"⚠️ Could not parse JSON: {json_str}")
             return None
 
+    def _extract_response_json(self, response_model_str: Optional[str]) -> Optional[Any]:
+        """
+        Extract the actual response schema/example from a complete response table.
+        Handles both the new full response table format and the legacy flat schema format.
+
+        Args:
+            response_model_str: JSON string of response table or flat schema
+
+        Returns:
+            Response schema/example or None
+        """
+        if not response_model_str or str(response_model_str).strip() in ['', 'None', 'null']:
+            return None
+
+        try:
+            parsed = self._parse_json_string(response_model_str)
+            if not parsed or not isinstance(parsed, dict):
+                return None
+
+            # Check if this is a flat schema (legacy format) - no status codes
+            # Legacy format was like: {"id": {"type": "integer"}, ...}
+            # New format has status codes like: {"200": {...}, "201": {...}}
+            is_flat_schema = False
+            for key in parsed.keys():
+                # If key is not a numeric status code, it's a legacy flat schema
+                if not key.isdigit():
+                    is_flat_schema = True
+                    break
+
+            if is_flat_schema:
+                logger.info("Detected legacy flat response schema")
+                return parsed
+
+            # New format: response table with status codes
+            logger.info(f"Detected response table with codes: {list(parsed.keys())}")
+
+            # Try to find a success response (2xx)
+            for code in ['200', '201', '202', '204']:
+                if code in parsed:
+                    response_data = parsed[code]
+
+                    # OpenAPI 3.0: response has 'content'
+                    if 'content' in response_data:
+                        for content_type in ['application/json', 'application/xml', '*/*', 'text/plain', 'application/text']:
+                            if content_type in response_data['content']:
+                                content_info = response_data['content'][content_type]
+
+                                # Prefer example over schema
+                                if 'example' in content_info:
+                                    return content_info['example']
+
+                                if 'schema' in content_info:
+                                    return content_info['schema']
+
+                    # Swagger 2.0 or direct schema
+                    if 'schema' in response_data:
+                        return response_data['schema']
+
+                    # No schema, but has description
+                    return response_data
+
+            # If no 2xx code, try any code
+            first_code = list(parsed.keys())[0]
+            response_data = parsed[first_code]
+
+            if 'content' in response_data:
+                first_content = list(response_data['content'].values())[0]
+                if 'example' in first_content:
+                    return first_content['example']
+                if 'schema' in first_content:
+                    return first_content['schema']
+
+            if 'schema' in response_data:
+                return response_data['schema']
+
+            return response_data
+
+        except Exception as e:
+            logger.warning(f"⚠️ Could not extract response JSON: {str(e)}")
+            return None
+
     def _parse_parameters(self, param_str: Optional[str]) -> Dict[str, Any]:
         """
         Parse parameter string (JSON or comma-separated) into dictionary.
@@ -141,7 +222,7 @@ class ParameterExtractor:
             'path_parameters': self._parse_parameters(row_data.get('path_parameters')),
             'form_data_parameters': self._parse_parameters(row_data.get('form_data_parameters')),
             'request_body_json': self._parse_json_string(row_data.get('request_body_json')),
-            'response_json': self._parse_json_string(row_data.get('response_model_json')),
+            'response_json': self._extract_response_json(row_data.get('standard_response_model')),
             'response_code': row_data.get('response_code'),
             'tags': row_data.get('tags')
         }

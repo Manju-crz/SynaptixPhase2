@@ -686,10 +686,11 @@ class SwaggerPage:
             logger.error(f"Failed to get example value JSON: {str(e)}")
             return ""
 
-    def get_response_model_json(self, component_name: str, method_type: str, operation_path: str) -> str:
+    def get_standard_response_model(self, component_name: str, method_type: str, operation_path: str) -> str:
         """
-        Extract the Model JSON content from response section or request body for a specific API operation.
-        Handles multiple DOM structures: response models, request body models, arrays, nested objects.
+        Extract the complete response table from Swagger UI for a specific API operation.
+        Returns a JSON string mapping status codes to their description, content type,
+        example value, and schema (where available).
 
         Args:
             component_name: The component/tag name (e.g., "pet", "store", "user")
@@ -697,10 +698,10 @@ class SwaggerPage:
             operation_path: The API path (e.g., "/pet/{petId}")
 
         Returns:
-            str: The JSON representation of the model, or empty string if not found
+            str: JSON representation of the complete response table, or empty string if not found
         """
         try:
-            logger.info(f"Starting model extraction for {method_type} {operation_path}")
+            logger.info(f"Starting response table extraction for {method_type} {operation_path}")
 
             # Get the operation body element
             body_element = self.get_operation_section_by_details(component_name, method_type, operation_path)
@@ -711,109 +712,201 @@ class SwaggerPage:
 
             logger.info("Got operation body element")
 
-            # Try to find model in multiple locations:
-            # 1. Response section (for GET, DELETE responses)
-            # 2. Request body parameters (for POST, PUT requests)
-            model_container = None
-            source_type = ""
-
-            # Strategy 1: Check response section
+            # Find responses section
             responses_section = body_element.locator('xpath=.//div[@class="opblock-section responses"]')
-            if responses_section.count() > 0:
-                logger.info("Found responses section")
-                # Expand if collapsed
-                expand_button = responses_section.locator('xpath=.//button[contains(@class, "opblock-summary-control")]')
-                if expand_button.count() > 0:
-                    try:
-                        expand_button.click()
-                        logger.info("Expanded responses section")
-                        self.page.wait_for_timeout(300)
-                    except:
-                        pass
-
-                # Find response row with model
-                response_row = body_element.locator('xpath=.//tr[contains(@class, "response")]')
-                if response_row.count() > 0:
-                    response_code = response_row.nth(0).get_attribute('data-code')
-                    logger.info(f"Found response row for code: {response_code}")
-
-                    # Find and click Model button
-                    model_button = response_row.nth(0).locator('xpath=.//button[@data-name="model"]')
-                    if model_button.count() > 0:
-                        logger.info("Found Model button in response section")
-                        model_button.click()
-                        self.page.wait_for_timeout(500)
-
-                        model_container = response_row.nth(0).locator('xpath=.//div[@class="model-container"]')
-                        if model_container.count() > 0:
-                            source_type = f"response (code: {response_code})"
-                            logger.info(f"Using model from {source_type}")
-
-            # Strategy 2: Check request body parameters (for POST/PUT)
-            if not model_container or model_container.count() == 0:
-                logger.info("Checking request body parameters section")
-                body_param_row = body_element.locator('xpath=.//tr[@data-param-in="body"]')
-
-                if body_param_row.count() > 0:
-                    logger.info("Found body parameter row")
-
-                    # Find and click Model button
-                    model_button = body_param_row.locator('xpath=.//button[@data-name="model"]')
-                    if model_button.count() > 0:
-                        logger.info("Found Model button in body parameters")
-                        model_button.click()
-                        self.page.wait_for_timeout(500)
-
-                        model_container = body_param_row.locator('xpath=.//div[@class="model-container"]')
-                        if model_container.count() > 0:
-                            source_type = "request body"
-                            logger.info(f"Using model from {source_type}")
-
-            # If no model container found, return empty
-            if not model_container or model_container.count() == 0:
-                logger.info("No model-container found in any section")
+            if responses_section.count() == 0:
+                logger.info("No responses section found")
                 return ""
 
-            logger.info("Found model-container, expanding all collapsed elements")
+            logger.info("Found responses section")
 
-            # Iterate to expand all collapsed model elements (max 15 iterations for deeply nested structures)
+            # Expand if collapsed
+            expand_button = responses_section.locator('xpath=.//button[contains(@class, "opblock-summary-control")]')
+            if expand_button.count() > 0:
+                try:
+                    expand_button.click()
+                    logger.info("Expanded responses section")
+                    self.page.wait_for_timeout(300)
+                except:
+                    pass
+
+            # Find the responses table
+            responses_table = responses_section.locator('table.responses-table')
+            if responses_table.count() == 0:
+                logger.info("No responses table found")
+                return ""
+
+            # Find all response rows
+            response_rows = responses_table.locator('tbody tr.response')
+            count = response_rows.count()
+            if count == 0:
+                logger.info("No response rows found")
+                return ""
+
+            logger.info(f"Found {count} response rows")
+
+            # Parse each response row
+            response_table = {}
+            for i in range(count):
+                row = response_rows.nth(i)
+
+                # Get status code
+                status_code = row.get_attribute('data-code')
+                if not status_code:
+                    continue
+
+                logger.info(f"Processing response code: {status_code}")
+
+                response_data = {}
+
+                # Get description
+                try:
+                    desc_element = row.locator('td.response-col_description .response-col_description__inner .renderedMarkdown').first
+                    if desc_element.count() > 0:
+                        description = desc_element.inner_text().strip()
+                        if description:
+                            response_data['description'] = description
+                except Exception as e:
+                    logger.warning(f"Failed to get description for {status_code}: {str(e)}")
+
+                # Get media type (content type)
+                try:
+                    content_type_select = row.locator('select.content-type').first
+                    if content_type_select.count() > 0:
+                        content_type = content_type_select.input_value()
+                        if content_type:
+                            response_data['content_type'] = content_type
+                except Exception as e:
+                    logger.warning(f"Failed to get content type for {status_code}: {str(e)}")
+
+                # Get example value if available
+                try:
+                    example_value = self._get_response_example_value(row)
+                    if example_value:
+                        response_data['example'] = example_value
+                except Exception as e:
+                    logger.warning(f"Failed to get example value for {status_code}: {str(e)}")
+
+                # Get schema by clicking Model tab
+                try:
+                    schema = self._get_response_schema(row)
+                    if schema:
+                        response_data['schema'] = schema
+                except Exception as e:
+                    logger.warning(f"Failed to get schema for {status_code}: {str(e)}")
+
+                # Only add if we have at least description or schema or example
+                if response_data:
+                    response_table[status_code] = response_data
+
+            if not response_table:
+                logger.info("No response data extracted")
+                return ""
+
+            result_json = json.dumps(response_table, indent=2, ensure_ascii=False)
+            logger.info(f"✅ Extracted response table with codes: {list(response_table.keys())}")
+            return result_json
+
+        except Exception as e:
+            logger.error(f"Failed to get response table: {str(e)}")
+            return ""
+    
+    
+    def _get_response_example_value(self, row) -> any:
+        """
+        Extract example value from a response row by switching to the Example tab.
+
+        Args:
+            row: The response table row element
+
+        Returns:
+            any: Parsed example value or None
+        """
+        try:
+            # Find and click Example tab
+            example_tab = row.locator('xpath=.//a[@data-name="example"]').first
+            if example_tab.count() == 0:
+                return None
+
+            example_tab.click()
+            self.page.wait_for_timeout(300)
+
+            # Find example code block
+            example_pre = row.locator('xpath=.//pre[contains(@class, "example")]').first
+            if example_pre.count() == 0:
+                return None
+
+            example_text = example_pre.inner_text().strip()
+            if not example_text:
+                return None
+
+            # Try to parse as JSON
+            try:
+                example_json = json.loads(example_text)
+                return example_json
+            except json.JSONDecodeError:
+                # If not valid JSON, return as string
+                return example_text
+
+        except Exception as e:
+            logger.warning(f"Failed to extract example value: {str(e)}")
+            return None
+
+    def _get_response_schema(self, row) -> any:
+        """
+        Extract schema from a response row by switching to the Model tab.
+
+        Args:
+            row: The response table row element
+
+        Returns:
+            any: Parsed schema object or None
+        """
+        try:
+            # Find and click Model tab
+            model_tab = row.locator('xpath=.//a[@data-name="model"]').first
+            if model_tab.count() == 0:
+                return None
+
+            model_tab.click()
+            self.page.wait_for_timeout(300)
+
+            # Find model container
+            model_container = row.locator('xpath=.//div[@class="model-container"]').first
+            if model_container.count() == 0:
+                return None
+
+            # Expand all collapsed model elements
             max_iterations = 15
             for iteration in range(max_iterations):
-                # Find all collapsed buttons
                 collapsed_buttons = model_container.locator('xpath=.//button[@class="model-box-control" and @aria-expanded="false"]')
                 count = collapsed_buttons.count()
-
                 if count == 0:
-                    logger.info(f"All elements expanded (iteration {iteration + 1})")
                     break
 
-                logger.info(f"Expanding {count} collapsed elements (iteration {iteration + 1})")
-
-                # Click each collapsed button
                 for i in range(count):
                     try:
                         collapsed_buttons.nth(i).click()
                         self.page.wait_for_timeout(100)
-                    except Exception as e:
-                        logger.warning(f"Failed to click button {i}: {str(e)}")
+                    except Exception:
+                        pass
 
-                # Wait for expansion
                 self.page.wait_for_timeout(200)
 
-            # Extract model structure - handle both object and array root types
-            model_json = self._extract_model_from_container(model_container)
+            # Extract model structure as object (not string)
+            model_str = self._extract_model_from_container(model_container)
+            if not model_str:
+                return None
 
-            if model_json:
-                logger.info(f"✅ Extracted model JSON from {source_type} for {method_type} {operation_path}")
-            else:
-                logger.warning(f"⚠ No model structure extracted for {method_type} {operation_path}")
-
-            return model_json
+            try:
+                return json.loads(model_str)
+            except json.JSONDecodeError:
+                return model_str
 
         except Exception as e:
-            logger.error(f"Failed to get model JSON: {str(e)}")
-    
-    
+            logger.warning(f"Failed to extract schema: {str(e)}")
+            return None
+
     def _extract_model_from_container(self, model_container) -> str:
         """
         Extract model structure from model-container element.

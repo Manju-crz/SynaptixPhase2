@@ -1011,6 +1011,10 @@ Running
 
 ```text
 http://localhost:8055/admin
+
+admin@example.com
+admin123
+
 ```
 
 ### Database
