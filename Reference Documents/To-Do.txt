@@ -1,6 +1,13 @@
 
 
-
+Guidance received:
+------------------
+1. Fix on to one application and try to cover all scenarios.
+2. Try to make code and script generation lean - like how many APIs are there, and corner cases available, are you able to test all of them.
+3. Can we establish a test coverage metrics.
+    - Any requirement changes happening, automatically generating test.
+    - Ability to generate scripts for the newer requirements come in and integrate it to the whole.
+    - Run the regression test and establish the outcome.
 
 
 Major Requirements
@@ -10,12 +17,18 @@ Major Requirements
 > Improvise the request for multiple test cases with the auto-generated test data.
 > Find the techniques to identify the coverage area upon the with the help of existing automated test cases and the total number of APIs available.
 > Auto healing - After the execution of a particular test method or a class, if there are any modification needs to be done in the code because of the code failure, the auto healing should be implemented successfully. For that, I guess I have to generate a third level of utility to accept the logs as an input and to produce the output of an updated code and followed by to do the re-execution with maximum of three iterations or the number of iterations set by the user.
-
+> Provision the setup and teardown to test files level and component level.
+> Provision the variables global level, component level and method level.
+> Develop a voice-based test case dictation feature.
 
 Corrections
 -----------
-We have to change the name of the file OpenAI underscore parser dot py to OpenAPI underscore parser dot py.
+> We have to change the name of the file OpenAI underscore parser dot py to OpenAPI underscore parser dot py.
 Have to set the similarity's minimum frequency
+> During the code generation, the server endppoint gets hardcodede, and so we have to make it dynamic
+> Auto generated method name is not upto the mark, the naming being done using only first step, but not considered all the steps, hence required method generation modifications. 
+> 
+
 
 Executor Tab
 ------------
@@ -23,3 +36,4 @@ Executor Tab
 > Reusable methods appropriately to append executor commands based on the selected methods, files, components, as a backend code.
 > Frontend command executions of executor tab for specific selected methods, files, components.
 > Testing the reload structure button by updating files, methods, components from code generator.
+

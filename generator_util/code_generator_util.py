@@ -438,6 +438,108 @@ class CodeGenerator:
 
         return {'has_dependency': False, 'step_ref': None, 'field': None, 'extract_fields': [], 'use_fields': []}
 
+    def _extract_response_json(self, response_model_str: Optional[str]) -> Optional[Any]:
+        """
+        Extract the actual response schema/example from a complete response table.
+        Handles both the new full response table format and the legacy flat schema format.
+        """
+        if not response_model_str or str(response_model_str).strip() in ['', 'None', 'null']:
+            return None
+
+        try:
+            parsed = json.loads(response_model_str)
+        except Exception:
+            return None
+
+        if not isinstance(parsed, dict):
+            return None
+
+        # Legacy flat schema like {"id": {...}, "name": {...}}
+        if any(not key.isdigit() for key in parsed.keys()):
+            return parsed
+
+        # New format: response table with status codes
+        for code in ['200', '201', '202', '204']:
+            if code not in parsed:
+                continue
+            response_data = parsed[code]
+
+            if 'content' in response_data:
+                for content_type in ['application/json', 'application/xml', '*/*', 'text/plain']:
+                    if content_type in response_data['content']:
+                        content_info = response_data['content'][content_type]
+                        if 'example' in content_info:
+                            return content_info['example']
+                        if 'schema' in content_info:
+                            return content_info['schema']
+
+            if 'schema' in response_data:
+                return response_data['schema']
+
+            return response_data
+
+        first_code = list(parsed.keys())[0]
+        response_data = parsed[first_code]
+        if 'content' in response_data:
+            first_content = list(response_data['content'].values())[0]
+            if 'example' in first_content:
+                return first_content['example']
+            if 'schema' in first_content:
+                return first_content['schema']
+        if 'schema' in response_data:
+            return response_data['schema']
+        return response_data
+
+    def _find_field_path(self, obj: Any, field: str, path: Optional[List] = None) -> Optional[List]:
+        """
+        Recursively find the shortest path to a field in a response example or schema.
+        Returns a list of keys/indexes, or None if not found.
+        """
+        if path is None:
+            path = []
+
+        if isinstance(obj, dict):
+            # OpenAPI 3.0 schema
+            if 'properties' in obj:
+                for key, val in obj['properties'].items():
+                    current = path + [key]
+                    if key == field:
+                        return current
+                    sub = self._find_field_path(val, field, current)
+                    if sub:
+                        return sub
+                return None
+
+            # OpenAPI array schema
+            if 'items' in obj:
+                return self._find_field_path(obj['items'], field, path + [0])
+
+            # Plain object (example or legacy flat schema)
+            for key, val in obj.items():
+                if key == field:
+                    return path + [key]
+                sub = self._find_field_path(val, field, path + [key])
+                if sub:
+                    return sub
+
+        elif isinstance(obj, list):
+            if obj:
+                return self._find_field_path(obj[0], field, path + [0])
+
+        return None
+
+    def _build_extraction_expr(self, var: str, path: List) -> str:
+        """
+        Build a Python expression from a base variable and a list of path parts.
+        """
+        expr = var
+        for part in path:
+            if isinstance(part, int):
+                expr += f"[{part}]"
+            else:
+                expr += f'["{part}"]'
+        return expr
+
     def _generate_combined_test_method(self, queries: List[str], sl_nos: List[int],
                                         rows_data: List[Dict[str, Any]],
                                         method_index: int = 1,
@@ -774,41 +876,47 @@ class CodeGenerator:
                 # Determine which fields to extract
                 fields_to_extract = parsed_query['extract_fields'] if parsed_query['extract_fields'] else ['id']
 
+                # Load the documented response schema/example for this step
+                response_json = self._extract_response_json(row_data.get('standard_response_model'))
+
                 for field in fields_to_extract:
-                    # NOTE: indentation here matches the enclosing `with allure.step(...)` body
-                    # (12 spaces for if/else, 16 for their bodies) so the generated .py file
-                    # is itself valid, importable Python.
-                    code += f'''            if response{i}.json_data and '{field}' in response{i}.json_data:
-                extracted_{field} = response{i}.json_data['{field}']
+                    # Find the documented path to this field in the response model
+                    field_path = self._find_field_path(response_json, field) if response_json else None
+
+                    if field_path:
+                        extraction_expr = self._build_extraction_expr(f"response{i}.json_data", field_path)
+                        code += f'''            try:
+                extracted_{field} = {extraction_expr}
+            except (KeyError, TypeError, IndexError):
+                pytest.fail("Required field '{field}' not found in Step {i} response")
+            logger.info(f"📌 Extracted {field}: {{extracted_{field}}}")
+            allure.dynamic.parameter("Extracted_{field}", extracted_{field})
+'''
+                    else:
+                        code += f'''            step{i}_response_data = response{i}.json_data
+            if isinstance(step{i}_response_data, dict) and 'data' in step{i}_response_data:
+                step{i}_response_data = step{i}_response_data['data']
+            if isinstance(step{i}_response_data, dict) and '{field}' in step{i}_response_data:
+                extracted_{field} = step{i}_response_data['{field}']
                 logger.info(f"📌 Extracted {field}: {{extracted_{field}}}")
                 allure.dynamic.parameter("Extracted_{field}", extracted_{field})
-'''
-                    # Alias lines are decided here, at generation time, based on the actual
-                    # field name — NOT re-checked with a literal `field == ...` inside the
-                    # generated code, since `field` is a generator-side variable and would
-                    # be undefined (NameError) if referenced inside the emitted test method.
-                    if field == 'id':
-                        code += '''                # Aliases for common ID patterns
-                extracted_petId = extracted_id
-                extracted_userId = extracted_id
-                extracted_orderId = extracted_id
-'''
-                    elif field == 'pet_id':
-                        code += '''                extracted_petId = extracted_pet_id  # Alias
-'''
-                    elif field == 'user_id':
-                        code += '''                extracted_userId = extracted_user_id  # Alias
+            else:
+                pytest.fail("Required field '{field}' not found in Step {i} response")
 '''
 
-                    code += f'''            else:
-                logger.warning("⚠️  '{field}' not found in response, using default value")
-                extracted_{field} = 1 if '{field}' in ['id', 'pet_id', 'user_id', 'order_id'] else "default_value"
-'''
                     if field == 'id':
-                        code += '''                extracted_petId = extracted_id
-                extracted_userId = extracted_id
-                extracted_orderId = extracted_id
+                        code += '''            # Aliases for common ID patterns
+            extracted_petId = extracted_id
+            extracted_userId = extracted_id
+            extracted_orderId = extracted_id
 '''
+                    elif field == 'pet_id':
+                        code += '''            extracted_petId = extracted_pet_id  # Alias
+'''
+                    elif field == 'user_id':
+                        code += '''            extracted_userId = extracted_user_id  # Alias
+'''
+
                     code += '\n'
 
             code += f'''

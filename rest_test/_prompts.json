@@ -28,19 +28,41 @@
             }
         },
         "aug28": {
-            "TestFile_02": {
+            "Directus": {
                 "methods": {
-                    "test_01_obtain_the_openid_access_token_ai": "Obtain the openid access token -> use client_id as synaptix-portal, username as admin.synaptix, grant_type as password and password as admin123, and also use realm as synaptix-technologies -> Retrive the access token as bearerToken; Get the list of Get group hierarchy -> Use the above retrieved bearer token authorization -> Validate the group names existing in the list and expected are - Employees, IT, Finance, HR, Management"
+                    "test_01_obtain_the_openid_access_token_ai": "Obtain the openid access token -> use client_id as synaptix-portal, username as admin.synaptix, grant_type as password and password as admin123, and also use realm as synaptix-technologies -> Retrive the access token as bearerToken; Get the list of Get group hierarchy -> Use the above retrieved bearer token authorization -> Validate the group names existing in the list and expected are - Employees, IT, Finance, HR, Management",
+                    "test_02_retrieve_a_temporary_access_token_ai": "Retrieve a temporary access token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response; Get the list of folders -> Use the above retrieved access_token as bearer token, do not include any query parameters to the request -> validate the response has the name \"aug28\", if it is not found in the response then fail it with appropriate message."
                 },
-                "class_name": "aug28TestFile02"
+                "class_name": "aug28Directus"
+            },
+            "Directus2": {
+                "methods": {
+                    "test_01_retrieve_a_temporary_access_token_ai": "Retrieve a temporary access token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response; Get the list of folders -> Use the above retrieved access_token as bearer token, do not include any query parameters to the request -> validate the response has the name \"aug28\", if it is not found in the response then fail it with appropriate message."
+                },
+                "class_name": "aug28Directus2"
             }
         },
-        "TestComponent_01": {
-            "TestFile_01": {
+        "Ag29": {
+            "TestFile_03": {
                 "methods": {
-                    "test_01_obtain_the_openid_access_token_ai": "Obtain the openid access token -> use client_id as synaptix-portal, username as admin.synaptix, grant_type as password and password as admin123, and also use realm as synaptix-technologies -> Retrive the access token as bearerToken; Get the list of Get group hierarchy -> Use the above retrieved bearer token authorization -> Validate the group names existing in the list and expected are - Employees, IT, Finance, HR, Management"
+                    "test_01_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \\\"email\\\": \\\"admin@example.com\\\" and \\\"password\\\": \\\"admin123\\\", but do not include mode and otp. Also Retrieve the access_token from the response; Get the list of folders -> Use the above retrieved access_token as bearer token, do not include any query parameters to the request -> validate the response has the name \\\"aug28\\\", if it is not found in the response then fail it with appropriate message."
                 },
-                "class_name": "TestComponent01TestFile01"
+                "class_name": "Ag29TestFile03"
+            },
+            "TestFile_05": {
+                "methods": {
+                    "test_01_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \\\"email\\\": \\\"admin@example.com\\\" and \\\"password\\\": \\\"admin123\\\", but do not include mode and otp. Also Retrieve the access_token from the response; Get the list of folders -> Use the above retrieved access_token as bearer token, do not include any query parameters to the request -> validate the response has the name \\\"aug28\\\", if it is not found in the response then fail it with appropriate message."
+                },
+                "class_name": "Ag29TestFile05"
+            }
+        },
+        "Directus": {
+            "FoldersCrud": {
+                "methods": {
+                    "test_01_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response; Get the list of folders -> Use the above retrieved access_token as bearer token, do not include any query parameters to the request -> Validate the response has the name \"aug28\", if it is not found in the response then fail it with appropriate message.",
+                    "test_02_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response; Create a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, but don't include parent option in the payload, Retrieve the ID from the response; Get the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response has a record with the above generated and retrieved ID along with the above used folder name; Delete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use  the same above retrieved ID  to delete in this request; Get the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response NOT included with the record having above created folder name and retrived ID, if it is existing by chance then throw with an appropriate error"
+                },
+                "class_name": "DirectusFoldersCrud"
             }
         }
     }
