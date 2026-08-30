@@ -176,9 +176,10 @@ REQUIREMENTS:
     - If Content-Type is 'application/json', use `json_payload=payload` parameter
     - NEVER use `json=payload` (this parameter does not exist in RestApiClient)
 11. When Form Data Params are provided, create the payload dict from those parameters
+12. If any new library is required by the modified method, add the necessary `import` statements at the very TOP of your response, BEFORE the method definition. Do NOT place imports inside the method body.
 
 OUTPUT:
-Return ONLY the complete modified Python test method code, nothing else. Do not include explanations or markdown code blocks.
+Return any required `import` statements first, followed by the complete modified Python test method code. Do not include explanations or markdown code blocks.
 """
 
         return prompt
@@ -267,6 +268,53 @@ Return ONLY the complete modified Python test method code, nothing else. Do not 
                 'original_code': original_code
             }
 
+    def _split_imports_and_method(self, modified_code: str) -> tuple[str, List[str]]:
+        """Separate leading import statements from the method body."""
+        lines = modified_code.split('\n')
+        import_lines = []
+        method_start = 0
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped:
+                method_start = i + 1
+                continue
+            if stripped.startswith('import ') or stripped.startswith('from '):
+                import_lines.append(stripped)
+                method_start = i + 1
+            else:
+                break
+        method_code = '\n'.join(lines[method_start:]).strip()
+        return method_code, import_lines
+
+    def _add_unique_imports(self, content: str, import_lines: List[str]) -> str:
+        """Add any new import lines at the end of the existing top-level import block."""
+        if not import_lines:
+            return content
+
+        existing = set(line.strip() for line in content.split('\n') if line.strip().startswith(('import ', 'from ')))
+        new_imports = [imp for imp in import_lines if imp not in existing]
+
+        if not new_imports:
+            return content
+
+        try:
+            tree = ast.parse(content)
+        except SyntaxError:
+            return content
+
+        last_import_line = 0
+        for node in tree.body:
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                last_import_line = max(last_import_line, node.end_lineno)
+
+        if last_import_line > 0:
+            lines = content.split('\n')
+            insert_idx = last_import_line
+            new_lines = lines[:insert_idx] + new_imports + lines[insert_idx:]
+            return '\n'.join(new_lines)
+
+        return content
+
     def replace_method_with_ai_version(
         self,
         file_path: str,
@@ -294,6 +342,13 @@ Return ONLY the complete modified Python test method code, nothing else. Do not 
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
+            # Split any leading import statements from the modified method
+            method_code, import_lines = self._split_imports_and_method(modified_code)
+
+            # Add new imports to the top of the file
+            if import_lines:
+                content = self._add_unique_imports(content, import_lines)
+
             # Parse the file into AST to find method boundaries
             tree = ast.parse(content)
             lines = content.split('\n')
@@ -301,8 +356,8 @@ Return ONLY the complete modified Python test method code, nothing else. Do not 
             # Create new method name with _ai suffix
             new_method_name = f"{original_method_name}_ai"
 
-            # Replace method name in modified code
-            modified_code_with_new_name = modified_code.replace(
+            # Replace method name in method code
+            modified_code_with_new_name = method_code.replace(
                 f"def {original_method_name}(",
                 f"def {new_method_name}(",
                 1
@@ -343,10 +398,8 @@ Return ONLY the complete modified Python test method code, nothing else. Do not 
                 else:  # Empty line
                     indented_lines.append(line)
 
-            indented_code = '\n'.join(indented_lines)
-
             # Replace the original method (including decorators) with AI version
-            new_lines = lines[:decorator_start_line] + [indented_code] + lines[method_end_line:]
+            new_lines = lines[:decorator_start_line] + indented_lines + lines[method_end_line:]
 
             # Write back to file
             with open(file_path, 'w', encoding='utf-8') as f:
@@ -355,13 +408,16 @@ Return ONLY the complete modified Python test method code, nothing else. Do not 
             logger.info(f"✅ Method replaced successfully")
             logger.info(f"  Original method: {original_method_name} (removed)")
             logger.info(f"  New method: {new_method_name} (replaced at same position)")
+            if import_lines:
+                logger.info(f"  Added imports: {import_lines}")
             logger.info(f"  File: {file_path}")
 
             return {
                 'success': True,
                 'new_method_name': new_method_name,
                 'file_path': file_path,
-                'replaced': True
+                'replaced': True,
+                'added_imports': import_lines
             }
 
         except Exception as e:
@@ -396,13 +452,22 @@ Return ONLY the complete modified Python test method code, nothing else. Do not 
         try:
             # Read existing file
             with open(file_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
+                content = f.read()
+
+            # Split any leading import statements from the modified method
+            method_code, import_lines = self._split_imports_and_method(modified_code)
+
+            # Add new imports to the top of the file
+            if import_lines:
+                content = self._add_unique_imports(content, import_lines)
+
+            lines = content.split('\n')
 
             # Create new method name with _ai suffix
             new_method_name = f"{original_method_name}_ai"
 
-            # Replace method name in modified code
-            modified_code_with_new_name = modified_code.replace(
+            # Replace method name in method code
+            modified_code_with_new_name = method_code.replace(
                 f"def {original_method_name}(",
                 f"def {new_method_name}(",
                 1
@@ -432,25 +497,25 @@ Return ONLY the complete modified Python test method code, nothing else. Do not 
                 else:  # Empty line
                     indented_lines.append(line)
 
-            indented_code = '\n'.join(indented_lines)
-
             # Insert the method at the correct position
-            lines.insert(insert_position, '\n\n')
-            lines.insert(insert_position + 1, indented_code + '\n')
+            new_lines = lines[:insert_position] + ['', ''] + indented_lines + lines[insert_position:]
 
             # Write back to file
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.writelines(lines)
+                f.write('\n'.join(new_lines))
 
             logger.info(f"✅ Modified method appended successfully")
             logger.info(f"  New method name: {new_method_name}")
             logger.info(f"  Inserted at line: {insert_position}")
+            if import_lines:
+                logger.info(f"  Added imports: {import_lines}")
             logger.info(f"  File: {file_path}")
 
             return {
                 'success': True,
                 'new_method_name': new_method_name,
-                'file_path': file_path
+                'file_path': file_path,
+                'added_imports': import_lines
             }
 
         except Exception as e:

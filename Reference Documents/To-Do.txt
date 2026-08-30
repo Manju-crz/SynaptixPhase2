@@ -1,5 +1,3 @@
-
-
 Guidance received:
 ------------------
 1. Fix on to one application and try to cover all scenarios.
@@ -8,6 +6,12 @@ Guidance received:
     - Any requirement changes happening, automatically generating test.
     - Ability to generate scripts for the newer requirements come in and integrate it to the whole.
     - Run the regression test and establish the outcome.
+
+
+
+pesu.eclib@pes.edu
+mahesh.ramegowda@gmail.com
+
 
 
 Major Requirements
