@@ -1,70 +1,23 @@
 {
     "components": {
-        "TestComponent_05": {
-            "TestFile_01": {
-                "methods": {
-                    "test_03_create_a_new_pet_in_pest_store_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response",
-                    "test_01_create_a_new_pet_in_pest_store_ai_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response",
-                    "test_02_create_a_new_pet_in_pest_store_ai_ai_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response"
-                },
-                "class_name": "TestComponent05TestFile01"
-            }
-        },
-        "TestComponent_02": {
-            "TestFile_01": {
-                "methods": {
-                    "test_01_create_a_new_pet_in_pest_store_ai_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response"
-                },
-                "class_name": "TestComponent02TestFile01"
-            }
-        },
-        "TestComponent_03": {
-            "TestFile_01": {
-                "methods": {
-                    "test_01_create_a_new_pet_in_pest_store_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response",
-                    "test_02_create_a_new_pet_in_pest_store_ai": "Create a new pet in pest store -> Retrieve the pet_id from the response; Update pet information -> Use the pet_id from previous response; Delete a pet -> Use the pet_id from previous response"
-                },
-                "class_name": "TestComponent03TestFile01"
-            }
-        },
-        "aug28": {
-            "Directus": {
-                "methods": {
-                    "test_01_obtain_the_openid_access_token_ai": "Obtain the openid access token -> use client_id as synaptix-portal, username as admin.synaptix, grant_type as password and password as admin123, and also use realm as synaptix-technologies -> Retrive the access token as bearerToken; Get the list of Get group hierarchy -> Use the above retrieved bearer token authorization -> Validate the group names existing in the list and expected are - Employees, IT, Finance, HR, Management",
-                    "test_02_retrieve_a_temporary_access_token_ai": "Retrieve a temporary access token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response; Get the list of folders -> Use the above retrieved access_token as bearer token, do not include any query parameters to the request -> validate the response has the name \"aug28\", if it is not found in the response then fail it with appropriate message."
-                },
-                "class_name": "aug28Directus"
-            },
-            "Directus2": {
-                "methods": {
-                    "test_01_retrieve_a_temporary_access_token_ai": "Retrieve a temporary access token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response; Get the list of folders -> Use the above retrieved access_token as bearer token, do not include any query parameters to the request -> validate the response has the name \"aug28\", if it is not found in the response then fail it with appropriate message."
-                },
-                "class_name": "aug28Directus2"
-            }
-        },
-        "Ag29": {
-            "TestFile_03": {
-                "methods": {
-                    "test_01_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \\\"email\\\": \\\"admin@example.com\\\" and \\\"password\\\": \\\"admin123\\\", but do not include mode and otp. Also Retrieve the access_token from the response; Get the list of folders -> Use the above retrieved access_token as bearer token, do not include any query parameters to the request -> validate the response has the name \\\"aug28\\\", if it is not found in the response then fail it with appropriate message."
-                },
-                "class_name": "Ag29TestFile03"
-            },
-            "TestFile_05": {
-                "methods": {
-                    "test_01_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \\\"email\\\": \\\"admin@example.com\\\" and \\\"password\\\": \\\"admin123\\\", but do not include mode and otp. Also Retrieve the access_token from the response; Get the list of folders -> Use the above retrieved access_token as bearer token, do not include any query parameters to the request -> validate the response has the name \\\"aug28\\\", if it is not found in the response then fail it with appropriate message."
-                },
-                "class_name": "Ag29TestFile05"
-            }
-        },
         "Directus": {
             "FoldersCrud": {
                 "methods": {
                     "test_01_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response; Get the list of folders -> Use the above retrieved access_token as bearer token, do not include any query parameters to the request -> Validate the response has the name \"aug28\", if it is not found in the response then fail it with appropriate message.",
                     "test_02_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response; Create a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, but don't include parent option in the payload, Retrieve the ID from the response; Get the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response has a record with the above generated and retrieved ID along with the above used folder name; Delete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use  the same above retrieved ID  to delete in this request; Get the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response NOT included with the record having above created folder name and retrived ID, if it is existing by chance then throw with an appropriate error",
                     "test_03_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response;\nCreate a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, but don't include parent option in the payload, Retrieve the ID from the response;\nUpdate a folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, but don't include parent option in the payload -> Validate that the response has ID which is as same as above retrieved ID, and the folder name has changed to the one which has been input in this step only.\nGet the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response has a record with the above generated and retrieved ID along with the above used folder name in step 3;\nDelete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use  the same above retrieved ID  to delete in this request;\nGet the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response NOT included with the record having above created folder name in step 2 , NOT even in Step 3 along with retrived ID, if it is existing by chance then throw with an appropriate error",
-                    "test_04_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response;\nCreate a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, but don't include parent option in the payload, Retrieve the ID from the response;\nCreate a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, and also include the retrieved folder id from above step 2 as a parent id in the payload, Retrieve the newly generated ID from the response as well;\nUpdate a folder -> Use the above retrieved access_token as bearer token, Use another random alphabetical string to provide as an input to the folder name, the folder id retrieved from step 3 needs to be updated, also include id retrieved from step 2 as parent -> Validate that the response has the same ID which is as same as above retrieved ID from step 3 along with parent as same as retrieved id from step 2, and the folder name has changed to the one which has been input in this step only;\nGet the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response has a record with the above generated and retrieved ID from step 3 along with the above used folder name in step 4, also it has included with parent id from step 2;\nDelete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use the same above retrieved ID from step 2 to delete in this request;\nDelete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use the same above retrieved ID from step 3 to delete in this request;\nGet the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response does NOT include the record having above retrived ID from step 2 , NOT even the retrieved ID from step 3 , if it is existing by chance then throw with an appropriate error"
+                    "test_04_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response;\nCreate a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, but don't include parent option in the payload, Retrieve the ID from the response;\nCreate a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, and also include the retrieved folder id from above step 2 as a parent id in this request payload, Retrieve the newly generated id from this response;\nUpdate a folder -> Use the above retrieved access_token as bearer token, Use another random alphabetical string to provide as an input to the folder name, include id retrieved from step 2 as parent in the payload, and also use id retrived from step 3 to update its name -> Validate that the response has the same ID which is as same as above retrieved ID from step 3 along with parent as same as retrieved id from step 2, and the folder name has changed to the one which has been input in this step only;\nGet the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response has a record with the above generated and retrieved ID from step 3 along with the above used folder name in step 4, also it has included with parent id from step 2;\nDelete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use the same above retrieved ID from step 3 to delete in this request;\nDelete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use the same above retrieved ID from step 2 to delete in this request;\nGet the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response does NOT include the record having above retrived ID from step 2 , NOT even the retrieved ID from step 3 , if it is existing by chance then throw with an appropriate error"
                 },
                 "class_name": "DirectusFoldersCrud"
+            },
+            "FoldersInvalidTests": {
+                "methods": {
+                    "test_01_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response;\nCreate a new folder -> Use the above retrieved access_token as bearer token, Set a blank value input to the folder name, and also don't include parent option in the payload -> Validate that the response returns an error with status code 400;",
+                    "test_02_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response;\nRetrieve a single folder by unique identifier -> Use the above retrieved access_token as bearer token, Use a random alphabetical string as a id -> Validate that the response returns an error with status code 404;",
+                    "test_03_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response;\nUpdate a folder -> Use the above retrieved access_token as bearer token, Use another random alphabetical string to provide as an input to the folder name, and use the same random string as folder id to the request path -> Validate that the response returns an error with status code 400;",
+                    "test_04_authenticate_login_to_retrieve_temporary_access_token_ai": "Authenticate Login to retrieve temporary access_token -> Use the \"email\": \"admin@example.com\" and \"password\": \"admin123\", but do not include mode and otp. Also Retrieve the access_token from the response;\nDelete a folder using folder id -> Use the above retrieved access_token as bearer token, Use another random alphabetical string to provide as an folder id to the request path -> Validate that the response returns an error with status code 400;"
+                },
+                "class_name": "DirectusFoldersInvalidTests"
             }
         }
     }

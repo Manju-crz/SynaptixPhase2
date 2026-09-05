@@ -1,3 +1,0 @@
-"""
-Generated test package
-"""

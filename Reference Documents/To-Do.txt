@@ -24,6 +24,7 @@ Major Requirements
 > Provision the setup and teardown to test files level and component level.
 > Provision the variables global level, component level and method level.
 > Develop a voice-based test case dictation feature.
+> Clear logs from UI when it is not required
 
 Corrections
 -----------

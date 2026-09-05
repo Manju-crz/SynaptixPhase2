@@ -142,14 +142,32 @@ Get the list of folder names -> Use the above retrieved access_token as bearer t
 
 Authenticate Login to retrieve temporary access_token -> Use the "email": "admin@example.com" and "password": "admin123", but do not include mode and otp. Also Retrieve the access_token from the response;
 Create a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, but don't include parent option in the payload, Retrieve the ID from the response;
-Create a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, and also include the retrieved folder id from above step 2 as a parent id in the payload, Retrieve the newly generated ID from the response as well;
-Update a folder -> Use the above retrieved access_token as bearer token, Use another random alphabetical string to provide as an input to the folder name, the folder id retrieved from step 3 needs to be updated, also include id retrieved from step 2 as parent -> Validate that the response has the same ID which is as same as above retrieved ID from step 3 along with parent as same as retrieved id from step 2, and the folder name has changed to the one which has been input in this step only;
+Create a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, and also include the retrieved folder id from above step 2 as a parent id in this request payload, Retrieve the newly generated id from this response;
+Update a folder -> Use the above retrieved access_token as bearer token, Use another random alphabetical string to provide as an input to the folder name, include id retrieved from step 2 as parent in the payload, and also use id retrived from step 3 to update its name -> Validate that the response has the same ID which is as same as above retrieved ID from step 3 along with parent as same as retrieved id from step 2, and the folder name has changed to the one which has been input in this step only;
 Get the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response has a record with the above generated and retrieved ID from step 3 along with the above used folder name in step 4, also it has included with parent id from step 2;
-Delete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use the same above retrieved ID from step 2 to delete in this request;
 Delete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use the same above retrieved ID from step 3 to delete in this request;
+Delete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use the same above retrieved ID from step 2 to delete in this request;
 Get the list of folder names -> Use the above retrieved access_token as bearer token -> Validate that the response does NOT include the record having above retrived ID from step 2 , NOT even the retrieved ID from step 3 , if it is existing by chance then throw with an appropriate error
 
 
+FoldersInvalidTests
+-------------------
+Authenticate Login to retrieve temporary access_token -> Use the "email": "admin@example.com" and "password": "admin123", but do not include mode and otp. Also Retrieve the access_token from the response;
+Create a new folder -> Use the above retrieved access_token as bearer token, Set a blank value input to the folder name, and also don't include parent option in the payload -> Validate that the response returns an error with status code 400;
+
+Authenticate Login to retrieve temporary access_token -> Use the "email": "admin@example.com" and "password": "admin123", but do not include mode and otp. Also Retrieve the access_token from the response;
+Retrieve a single folder by unique identifier -> Use the above retrieved access_token as bearer token, Use a random alphabetical string as a id -> Validate that the response returns an error with status code 404;
+
+Authenticate Login to retrieve temporary access_token -> Use the "email": "admin@example.com" and "password": "admin123", but do not include mode and otp. Also Retrieve the access_token from the response;
+Update a folder -> Use the above retrieved access_token as bearer token, Use another random alphabetical string to provide as an input to the folder name, and use the same random string as folder id to the request path -> Validate that the response returns an error with status code 400;
+
+Authenticate Login to retrieve temporary access_token -> Use the "email": "admin@example.com" and "password": "admin123", but do not include mode and otp. Also Retrieve the access_token from the response;
+Delete a folder using folder id -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an folder id to the request path -> Validate that the response returns an error with status code 400;
 
 
+R1
+Authenticate Login to retrieve temporary access_token -> Use the "email": "admin@example.com" and "password": "admin123", but do not include mode and otp. Also Retrieve the access_token from the response;
+Create a new folder -> Use the above retrieved access_token as bearer token, Use a random alphabetical string to provide as an input to the folder name, but don't include parent option in the payload, Retrieve the ID from the response;
+Create a new folder -> Use the above retrieved access_token as bearer token, Use a above created random alphabetical string only from Step 2 to provide as an input to the folder name in this request, and also don't include parent option in the payload -> Validate that the response returns an error with status code 400;
+Delete a folder using folder id -> Use the above retrieved access_token as bearer token -> Use the same above retrieved ID from step 2 to delete in this request;
 

@@ -477,7 +477,7 @@ class DirectusFoldersCrud:
 
             logger.info(f"📥 Step 1 Response Status: {response1.status_code}")
             logger.info(f"📥 Step 1 Response Body: {json.dumps(response1.json_data, indent=2) if response1.json_data else response1.text}")
-
+        
             allure.attach(
                 json.dumps(response1.json_data, indent=2) if response1.json_data else response1.text,
                 name="Step 1 Response",
@@ -487,7 +487,7 @@ class DirectusFoldersCrud:
             assert response1.is_success(), f"Step 1 failed with status {response1.status_code}"
             logger.info(f"✅ Step 1 passed - Status: {response1.status_code}")
 
-            # Extract access_token from response
+            # Extract fields from response for use in subsequent steps
             try:
                 extracted_access_token = response1.json_data["data"]["access_token"]
             except (KeyError, TypeError, IndexError):
@@ -510,14 +510,14 @@ class DirectusFoldersCrud:
             response2 = api_client.post(
                 endpoint=step2_endpoint,
                 json_payload=step2_payload,
-                headers={"Authorization": f"Bearer {extracted_access_token}"}
+                headers={'Authorization': f'Bearer {extracted_access_token}'}
             )
 
             logger.info(f"📤 Step 2 Request Payload: {json.dumps(step2_payload, indent=2)}")
 
             logger.info(f"📥 Step 2 Response Status: {response2.status_code}")
             logger.info(f"📥 Step 2 Response Body: {json.dumps(response2.json_data, indent=2) if response2.json_data else response2.text}")
-
+        
             allure.attach(
                 json.dumps(response2.json_data, indent=2) if response2.json_data else response2.text,
                 name="Step 2 Response",
@@ -527,7 +527,7 @@ class DirectusFoldersCrud:
             assert response2.is_success(), f"Step 2 failed with status {response2.status_code}"
             logger.info(f"✅ Step 2 passed - Status: {response2.status_code}")
 
-            # Extract id from response
+            # Extract fields from response for use in subsequent steps
             try:
                 extracted_id = response2.json_data["data"]["id"]
             except (KeyError, TypeError, IndexError):
@@ -550,14 +550,14 @@ class DirectusFoldersCrud:
             response3 = api_client.post(
                 endpoint=step3_endpoint,
                 json_payload=step3_payload,
-                headers={"Authorization": f"Bearer {extracted_access_token}"}
+                headers={'Authorization': f'Bearer {extracted_access_token}'}
             )
 
             logger.info(f"📤 Step 3 Request Payload: {json.dumps(step3_payload, indent=2)}")
 
             logger.info(f"📥 Step 3 Response Status: {response3.status_code}")
             logger.info(f"📥 Step 3 Response Body: {json.dumps(response3.json_data, indent=2) if response3.json_data else response3.text}")
-
+        
             allure.attach(
                 json.dumps(response3.json_data, indent=2) if response3.json_data else response3.text,
                 name="Step 3 Response",
@@ -567,7 +567,7 @@ class DirectusFoldersCrud:
             assert response3.is_success(), f"Step 3 failed with status {response3.status_code}"
             logger.info(f"✅ Step 3 passed - Status: {response3.status_code}")
 
-            # Extract newly generated ID from response
+            # Extract fields from response for use in subsequent steps
             try:
                 extracted_newly = response3.json_data["data"]["id"]
             except (KeyError, TypeError, IndexError):
@@ -582,23 +582,22 @@ class DirectusFoldersCrud:
 
         step4_endpoint = f"/folders/{extracted_newly}"
 
-        folder_name_step4 = ''.join(random.choices(string.ascii_lowercase, k=10))  # Random folder name
+        new_folder_name = ''.join(random.choices(string.ascii_lowercase, k=10))  # Random folder name for update
 
         with allure.step("Step 4: PATCH /folders/{id}"):
             logger.info(f"🚀 Step 4: {'PATCH'} {step4_endpoint}")
-            step4_payload = {'name': folder_name_step4, 'parent': extracted_id}  # Updated payload
-
-            logger.info(f"📤 Step 4 Request Payload: {json.dumps(step4_payload, indent=2)}")
-
+            step4_payload = {'name': new_folder_name, 'parent': extracted_id}  # Updated payload
             response4 = api_client.patch(
                 endpoint=step4_endpoint,
                 json_payload=step4_payload,
-                headers={"Authorization": f"Bearer {extracted_access_token}"}
+                headers={'Authorization': f'Bearer {extracted_access_token}'}
             )
+
+            logger.info(f"📤 Step 4 Request Payload: {json.dumps(step4_payload, indent=2)}")
 
             logger.info(f"📥 Step 4 Response Status: {response4.status_code}")
             logger.info(f"📥 Step 4 Response Body: {json.dumps(response4.json_data, indent=2) if response4.json_data else response4.text}")
-
+        
             allure.attach(
                 json.dumps(response4.json_data, indent=2) if response4.json_data else response4.text,
                 name="Step 4 Response",
@@ -609,12 +608,9 @@ class DirectusFoldersCrud:
             logger.info(f"✅ Step 4 passed - Status: {response4.status_code}")
 
             # Validate response
-            try:
-                assert response4.json_data["data"]["id"] == extracted_newly, "ID in response does not match the updated ID"
-                assert response4.json_data["data"]["parent"] == extracted_id, "Parent ID in response does not match the expected parent ID"
-                assert response4.json_data["data"]["name"] == folder_name_step4, "Folder name in response does not match the updated name"
-            except (KeyError, TypeError):
-                pytest.fail("Validation of response fields failed")
+            assert response4.json_data["data"]["id"] == extracted_newly, "Updated folder ID does not match"
+            assert response4.json_data["data"]["parent"] == extracted_id, "Parent ID does not match"
+            assert response4.json_data["data"]["name"] == new_folder_name, "Folder name was not updated correctly"
 
         # Step 5: Get the list of folder names
         allure.dynamic.parameter("Step_5_Sl_No", 21)
@@ -627,12 +623,12 @@ class DirectusFoldersCrud:
             logger.info(f"🚀 Step 5: {'GET'} {step5_endpoint}")
             response5 = api_client.get(
                 endpoint=step5_endpoint,
-                headers={"Authorization": f"Bearer {extracted_access_token}"}
+                headers={'Authorization': f'Bearer {extracted_access_token}'}
             )
 
             logger.info(f"📥 Step 5 Response Status: {response5.status_code}")
             logger.info(f"📥 Step 5 Response Body: {json.dumps(response5.json_data, indent=2) if response5.json_data else response5.text}")
-
+        
             allure.attach(
                 json.dumps(response5.json_data, indent=2) if response5.json_data else response5.text,
                 name="Step 5 Response",
@@ -642,29 +638,27 @@ class DirectusFoldersCrud:
             assert response5.is_success(), f"Step 5 failed with status {response5.status_code}"
             logger.info(f"✅ Step 5 passed - Status: {response5.status_code}")
 
-            # Validate response contains the folder created in Step 3
-            folders = response5.json_data.get("data", [])
-            folder_ids = [folder["id"] for folder in folders]
-            assert extracted_newly in folder_ids, f"Folder with ID {extracted_newly} not found in the response"
-            assert folder_name_step4 in [folder["name"] for folder in folders], f"Folder name '{folder_name_step4}' not found in the response"
+            # Validate response contains the updated folder
+            folders = response5.json_data["data"]
+            assert any(folder["id"] == extracted_newly and folder["name"] == new_folder_name and folder["parent"] == extracted_id for folder in folders), "Updated folder not found in the list"
 
         # Step 6: Delete a folder using folder id
         allure.dynamic.parameter("Step_6_Sl_No", 26)
         allure.dynamic.parameter("Step_6_Method", "DELETE")
         allure.dynamic.parameter("Step_6_Endpoint", "/folders/{id}")
 
-        step6_endpoint = f"/folders/{extracted_id}"
+        step6_endpoint = f"/folders/{extracted_newly}"
 
         with allure.step("Step 6: DELETE /folders/{id}"):
             logger.info(f"🚀 Step 6: {'DELETE'} {step6_endpoint}")
             response6 = api_client.delete(
                 endpoint=step6_endpoint,
-                headers={"Authorization": f"Bearer {extracted_access_token}"}
+                headers={'Authorization': f'Bearer {extracted_access_token}'}
             )
 
             logger.info(f"📥 Step 6 Response Status: {response6.status_code}")
             logger.info(f"📥 Step 6 Response Body: {json.dumps(response6.json_data, indent=2) if response6.json_data else response6.text}")
-
+        
             allure.attach(
                 json.dumps(response6.json_data, indent=2) if response6.json_data else response6.text,
                 name="Step 6 Response",
@@ -679,18 +673,18 @@ class DirectusFoldersCrud:
         allure.dynamic.parameter("Step_7_Method", "DELETE")
         allure.dynamic.parameter("Step_7_Endpoint", "/folders/{id}")
 
-        step7_endpoint = f"/folders/{extracted_newly}"
+        step7_endpoint = f"/folders/{extracted_id}"
 
         with allure.step("Step 7: DELETE /folders/{id}"):
             logger.info(f"🚀 Step 7: {'DELETE'} {step7_endpoint}")
             response7 = api_client.delete(
                 endpoint=step7_endpoint,
-                headers={"Authorization": f"Bearer {extracted_access_token}"}
+                headers={'Authorization': f'Bearer {extracted_access_token}'}
             )
 
             logger.info(f"📥 Step 7 Response Status: {response7.status_code}")
             logger.info(f"📥 Step 7 Response Body: {json.dumps(response7.json_data, indent=2) if response7.json_data else response7.text}")
-
+        
             allure.attach(
                 json.dumps(response7.json_data, indent=2) if response7.json_data else response7.text,
                 name="Step 7 Response",
@@ -711,12 +705,12 @@ class DirectusFoldersCrud:
             logger.info(f"🚀 Step 8: {'GET'} {step8_endpoint}")
             response8 = api_client.get(
                 endpoint=step8_endpoint,
-                headers={"Authorization": f"Bearer {extracted_access_token}"}
+                headers={'Authorization': f'Bearer {extracted_access_token}'}
             )
 
             logger.info(f"📥 Step 8 Response Status: {response8.status_code}")
             logger.info(f"📥 Step 8 Response Body: {json.dumps(response8.json_data, indent=2) if response8.json_data else response8.text}")
-
+        
             allure.attach(
                 json.dumps(response8.json_data, indent=2) if response8.json_data else response8.text,
                 name="Step 8 Response",
@@ -727,10 +721,19 @@ class DirectusFoldersCrud:
             logger.info(f"✅ Step 8 passed - Status: {response8.status_code}")
 
             # Validate that the deleted folders are not present in the response
-            folders_after_deletion = response8.json_data.get("data", [])
-            folder_ids_after_deletion = [folder["id"] for folder in folders_after_deletion]
-            assert extracted_id not in folder_ids_after_deletion, f"Folder with ID {extracted_id} should not exist after deletion"
-            assert extracted_newly not in folder_ids_after_deletion, f"Folder with ID {extracted_newly} should not exist after deletion"
+            deleted_ids = [extracted_newly, extracted_id]
+            folders = response8.json_data["data"]
+            for folder in folders:
+                assert folder["id"] not in deleted_ids, f"Folder with ID {folder['id']} should not exist in the list"
+
+
+
+
+
+
+
+
+
 
 
 
